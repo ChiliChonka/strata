@@ -82,6 +82,8 @@ every architectural decision needed to begin Phase 2.
 - [x] Create live-build configuration with snapshot-pinned bootstrap and chroot
       mirrors, and live binary mirrors (ADR-0005)
 - [x] Add `scripts/build.sh` as the single documented build entry point
+- [x] Add a container build environment so non-Debian hosts can build
+      (`Containerfile`, `scripts/build-in-docker.sh`)
 - [x] Add explicit package lists
 - [ ] Add Hyprland minimal config under `/etc/strata/hypr/`
 - [ ] Add Quickshell minimal config

@@ -1,0 +1,40 @@
+# Keep the build context small.
+#
+# This matters more than usual here: after a build, chroot/ and cache/ hold
+# tens of gigabytes. Without this file every `docker build` would ship all of it
+# to the daemon as context.
+
+.git/
+.github/
+
+# live-build working tree
+.build/
+cache/
+chroot/
+chroot.files*
+binary/
+binary.*
+local/
+tftpboot/
+
+# Generated live-build config
+config/binary
+config/bootstrap
+config/chroot
+config/common
+config/source
+
+# Artifacts
+*.iso
+*.img
+*.squashfs
+*.zsync
+*.log
+*.sha256
+*.sig
+manifest-*.txt
+
+# Documentation is not needed to build
+docs/
+assets/
+*.md
