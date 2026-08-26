@@ -13,12 +13,9 @@ Significant architectural decisions are recorded here, one file per decision.
 | [0007](ADR-0007-default-filesystem-ext4.md) | Default filesystem is ext4 | Accepted |
 | [0008](ADR-0008-session-and-greeter.md) | Session management with greetd and tuigreet | Accepted |
 | [0009](ADR-0009-default-package-selection.md) | Default package selection for the minimal desktop | Accepted |
+| [0010](ADR-0010-xwayland-in-the-base-image.md) | XWayland stays in the base image | Accepted |
 
-## Pending
-
-| ADR | Decision | Status |
-|---|---|---|
-| 0010 | XWayland in the base image | Open, blocks freezing the package lists |
+The design phase is complete. No decisions are currently pending.
 
 ## Format
 

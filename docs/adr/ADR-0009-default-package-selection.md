@@ -144,9 +144,9 @@ usable text.
 
 ## Open Questions
 
-- **XWayland.** Not yet decided. Excluding it keeps the image smaller but breaks
-  every X11-only application. It likely belongs in the base image; this needs its
-  own decision before the package lists are frozen.
+- **XWayland.** ~~Not yet decided.~~ **Resolved by ADR-0010: it stays in the base
+  image.** ADR-0010 also adds `libqt6waylandclient6` to the package lists
+  explicitly.
 - Whether Quickshell should eventually replace `mako-notifier` and
   `hyprpolkitagent` natively.
 

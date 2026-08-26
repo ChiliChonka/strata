@@ -66,14 +66,15 @@ Not packaged in Testing, do not plan around them: `regreet`, `hyprshot`,
 
 ### Open
 
-- [ ] **Decide XWayland in the base image → ADR-0010. Blocks freezing the
-      package lists.**
+- [x] Decide XWayland in the base image → stays in, ADR-0010
 - [ ] Design QEMU Secure Boot testing with `ovmf` secboot variables
 - [ ] Validate GitHub Actions runner constraints: disk space for live-build,
       KVM availability for the QEMU test, snapshot.debian.org throughput
 - [ ] Define the minimal default keybinding set
 - [ ] Define the repository directory layout
-- [ ] Document findings before implementation
+
+**The design phase is otherwise complete.** ADR-0001 through ADR-0010 cover
+every architectural decision needed to begin Phase 2.
 
 ## Phase 2 — MVP Build
 
