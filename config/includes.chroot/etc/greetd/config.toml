@@ -16,7 +16,13 @@
 # Wayland dependency.
 
 [terminal]
-vt = 1
+# vt 7, not 1. Debian's greetd.service declares Conflicts=getty@tty7.service and
+# After=getty@tty7.service, so tty7 is the VT it is built to own. On vt 1 the
+# greeter shares the terminal with the kernel console and the live session's
+# autologin getty: console output overwrites the greeter, and keystrokes are
+# split between tuigreet and the shell behind it. Found by the QEMU smoke test,
+# where typing "user" put "us" in the greeter and "er" into a bash prompt.
+vt = 7
 
 [default_session]
 command = "tuigreet --time --remember --remember-session --sessions /usr/share/wayland-sessions --cmd Hyprland"

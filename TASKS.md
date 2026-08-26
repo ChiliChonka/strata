@@ -85,19 +85,29 @@ every architectural decision needed to begin Phase 2.
 - [x] Add a container build environment so non-Debian hosts can build
       (`Containerfile`, `scripts/build-in-docker.sh`)
 - [x] Add explicit package lists
-- [ ] Add Hyprland minimal config under `/etc/strata/hypr/`
-- [ ] Add Quickshell minimal config
-- [ ] Configure greetd to launch tuigreet, with TTY login documented as fallback
+- [ ] Add Hyprland minimal config under `/etc/strata/hypr/` — **note: Hyprland
+      0.56 in Debian uses Lua, the template is `/usr/share/hypr/hyprland.lua`,
+      not `hyprland.conf`. Its default sets `local terminal = "kitty"`, which
+      Strata does not install (ADR-0009 chose `foot`), so SUPER+Q is dead until
+      Strata ships its own config.**
+- [ ] Add Quickshell minimal config — installed but never started; nothing
+      execs it, so the session comes up bare
 - [ ] Configure PipeWire/WirePlumber
 - [ ] Configure portals
 - [ ] Configure Polkit
-- [x] Configure session startup and greeter (greetd + tuigreet)
+- [x] Configure session startup and greeter (greetd + tuigreet on vt 7 —
+      vt 1 collides with the console and the live autologin getty)
+- [x] Autologin for the live session only, via a live-config component
+- [x] Set the live hostname to `strata` instead of live-config's `debian`
 - [ ] Configure Calamares via `calamares-settings-debian`
 - [x] Produce first ISO — `strata-2026.08.26-amd64.iso`, 1.5 GB, built in 14 min
       from snapshot `20260826T000000Z`, 897 packages
-- [ ] Test UEFI boot
+- [x] Test UEFI boot — QEMU with OVMF, `tests/qemu-smoke-test.sh`
+- [x] Test Secure Boot in QEMU with Microsoft keys enrolled — shim and GRUB
+      signatures verified with sbverify
 - [ ] Test Secure Boot on real hardware, not only QEMU
-- [ ] Test the live session before installation
+- [x] Test the live session before installation — boots unattended into a
+      Hyprland session via greetd autologin
 - [ ] Test installation
 - [ ] Test installed boot
 - [x] Add regression test that the installed `sources.list` points at the live

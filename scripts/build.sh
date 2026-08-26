@@ -66,8 +66,17 @@ log "Image version     $STRATA_VERSION"
 
 cd "$REPO_ROOT"
 
-log "lb clean"
-lb clean --purge
+# Deliberately NOT --purge. Per live-build's clean script, --purge additionally
+# does `rm -rf cache`, which destroys the package cache that --cache-packages
+# built up, forcing a full re-download from the rate-limited snapshot archive on
+# every build (ADR-0005 names that cost explicitly). Plain `lb clean` still
+# removes stage, chroot, binary and source, so the rebuild is complete.
+#
+# --purge also clears the config stagefile, which only affects `lb config
+# --config <git-url>`. Strata does not use that, and lb config re-evaluates
+# auto/config either way.
+log "lb clean (keeping the package cache)"
+lb clean
 
 log "lb config"
 lb config

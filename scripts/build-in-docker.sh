@@ -48,11 +48,31 @@ if [[ "$RUNTIME" == "docker" ]]; then
 	NEEDS_CHOWN=1
 fi
 
+# Only the artifacts a person actually handles. NOT chroot/, cache/ or binary/.
+#
+# Those must keep root ownership. live-build's bootstrap cache stores /var/lib
+# owned by root, and the path-safety check in dbus-daemon's postinst refuses to
+# configure when it sees "unsafe path transition /var/lib (owned by 1000) ->
+# /var/lib/dbus (owned by root)". Chowning the whole tree poisons the cache, and
+# the next build that reuses it dies in a cascade of dpkg configure failures.
+#
+# Removing build scratch therefore needs the container:
+#   docker run --rm -v "$PWD:/build" -w /build strata-build:latest lb clean
 fix_ownership() {
 	[[ "$NEEDS_CHOWN" -eq 1 ]] || return 0
-	log "Restoring ownership of build output to ${HOST_UID}:${HOST_GID}"
-	"$RUNTIME" run --rm -v "${REPO_ROOT}:/build" "$IMAGE" \
-		chown -R "${HOST_UID}:${HOST_GID}" /build || true
+	log "Restoring ownership of build artifacts to ${HOST_UID}:${HOST_GID}"
+	# shellcheck disable=SC2016  # deliberate: $1 expands inside the container
+	"$RUNTIME" run --rm -v "${REPO_ROOT}:/build" -w /build "$IMAGE" \
+		bash -c '
+			shopt -s nullglob
+			files=( strata-*.iso strata-*.iso.sha256 strata-*.contents \
+			        strata-*.files strata-*.packages manifest-*.txt \
+			        build.log chroot.packages.* chroot.files \
+			        binary.modified_timestamps )
+			if [ ${#files[@]} -gt 0 ]; then
+				chown "$1" "${files[@]}"
+			fi
+		' _ "${HOST_UID}:${HOST_GID}" || true
 }
 
 # --- Preconditions ---------------------------------------------------------
