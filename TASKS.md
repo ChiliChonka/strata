@@ -71,24 +71,25 @@ Not packaged in Testing, do not plan around them: `regreet`, `hyprshot`,
 - [ ] Validate GitHub Actions runner constraints: disk space for live-build,
       KVM availability for the QEMU test, snapshot.debian.org throughput
 - [ ] Define the minimal default keybinding set
-- [ ] Define the repository directory layout
+- [x] Define the repository directory layout — `auto/`, `config/`, `scripts/`,
+      `tests/`, per live-build convention
 
 **The design phase is otherwise complete.** ADR-0001 through ADR-0010 cover
 every architectural decision needed to begin Phase 2.
 
 ## Phase 2 — MVP Build
 
-- [ ] Create live-build configuration with snapshot-pinned bootstrap and chroot
+- [x] Create live-build configuration with snapshot-pinned bootstrap and chroot
       mirrors, and live binary mirrors (ADR-0005)
-- [ ] Add `scripts/build.sh` as the single documented build entry point
-- [ ] Add explicit package lists
+- [x] Add `scripts/build.sh` as the single documented build entry point
+- [x] Add explicit package lists
 - [ ] Add Hyprland minimal config under `/etc/strata/hypr/`
 - [ ] Add Quickshell minimal config
 - [ ] Configure greetd to launch tuigreet, with TTY login documented as fallback
 - [ ] Configure PipeWire/WirePlumber
 - [ ] Configure portals
 - [ ] Configure Polkit
-- [ ] Configure session startup and greeter
+- [x] Configure session startup and greeter (greetd + tuigreet)
 - [ ] Configure Calamares via `calamares-settings-debian`
 - [ ] Produce first ISO
 - [ ] Test UEFI boot
@@ -96,7 +97,8 @@ every architectural decision needed to begin Phase 2.
 - [ ] Test the live session before installation
 - [ ] Test installation
 - [ ] Test installed boot
-- [ ] Test that the installed `sources.list` points at the live Debian archive
+- [x] Add regression test that the installed `sources.list` points at the live
+      Debian archive (`tests/check-no-snapshot-leak.sh`)
 - [ ] Test networking, audio, Hyprland, Quickshell
 
 ## Phase 3 — CI and Release

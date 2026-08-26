@@ -252,6 +252,26 @@ later goal, not a release requirement. See
 
 A custom installer is out of scope.
 
+## Building
+
+Requires a Debian system with `live-build` installed, root privileges, and
+roughly 20 GB of free disk space.
+
+```bash
+sudo apt install live-build
+sudo ./scripts/build.sh
+```
+
+That is the whole build. `scripts/build.sh` is the only supported entry point:
+it resolves a `snapshot.debian.org` timestamp, derives `SOURCE_DATE_EPOCH` from
+it, runs live-build, and writes the ISO, its checksum, and a build manifest.
+
+To rebuild a past image, pass the snapshot timestamp its manifest records:
+
+```bash
+sudo ./scripts/build.sh 20260801T000000Z
+```
+
 ## Testing
 
 Automated validation should use QEMU/KVM where practical.

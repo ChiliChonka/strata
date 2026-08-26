@@ -1,0 +1,95 @@
+#!/bin/sh
+# Strata live-build configuration.
+#
+# Invoked by `lb config`, normally through scripts/build.sh, which is the
+# supported entry point. Running `lb config` directly works but skips snapshot
+# resolution, so STRATA_SNAPSHOT must then be set by hand.
+#
+# NOTE: do not put comments inside the `lb config` invocation below. A `#` after
+# a line continuation comments out the remainder of the command, silently
+# dropping every flag that follows. Keep explanations here instead.
+#
+# Why the non-obvious flags are set the way they are:
+#
+#   --mirror-bootstrap / --mirror-chroot / --mirror-chroot-security
+#       ADR-0005. Pinned to a snapshot.debian.org timestamp so a published image
+#       can be rebuilt later from the same package set.
+#
+#   --mirror-binary / --mirror-binary-security
+#       ADR-0005. These are what the INSTALLED system inherits in its
+#       sources.list, so they must always point at the live Debian archive. A
+#       snapshot URL here would freeze every installation at image build date and
+#       cut it off from security updates. tests/check-no-snapshot-leak.sh guards
+#       this.
+#
+#   --uefi-secure-boot enable
+#       ADR-0002. Deliberately 'enable' rather than the default 'auto'. On
+#       'auto', live-build falls back to unsigned grub-efi with only a warning
+#       when the signed packages are missing, producing an image that quietly
+#       fails the project's core requirement. 'enable' makes the build fail
+#       instead.
+#
+#   --bootloaders "syslinux,grub-efi"
+#       isolinux is always used for ISO images regardless, so naming it is honest
+#       about what the build does. grub-efi provides the UEFI path.
+#
+#   --debian-installer none
+#       ADR-0006. Installation goes through Calamares from the live session, so
+#       no Debian Installer is embedded. Calamares arrives as a package via
+#       config/package-lists/.
+#
+#   --archive-areas "main contrib non-free-firmware"
+#       non-free-firmware carries the Wi-Fi and GPU firmware most laptops need.
+#       This matches what official Debian images have shipped since Debian 12.
+#
+#   --apt-recommends true
+#       ADR-0010. Debian's hyprland package Recommends xwayland, and Strata keeps
+#       it. Disabling recommends globally would change far more than that and is
+#       explicitly not decided.
+#
+#   --apt-options "--yes -o Acquire::Check-Valid-Until=false"
+#       ADR-0005. Snapshot Release files carry a Valid-Until in the past, and APT
+#       refuses them by default. This is the single most common way a
+#       snapshot-pinned build fails. It disables freshness checking only; archive
+#       signature verification still applies. Build-time only — this must never
+#       be written into config/includes.chroot, or installed systems would stop
+#       checking archive freshness too. '--yes' repeats live-build's own default,
+#       which this option replaces rather than extends.
+
+set -e
+
+: "${STRATA_SNAPSHOT:?STRATA_SNAPSHOT is not set — run scripts/build.sh instead}"
+
+DEBIAN_CODENAME="${DEBIAN_CODENAME:-forky}"
+STRATA_VERSION="${STRATA_VERSION:-dev}"
+
+SNAPSHOT_MIRROR="https://snapshot.debian.org/archive/debian/${STRATA_SNAPSHOT}"
+SNAPSHOT_SECURITY="https://snapshot.debian.org/archive/debian-security/${STRATA_SNAPSHOT}"
+
+LIVE_MIRROR="https://deb.debian.org/debian/"
+LIVE_SECURITY="https://security.debian.org/debian-security/"
+
+lb config noauto \
+	--distribution "${DEBIAN_CODENAME}" \
+	--archive-areas "main contrib non-free-firmware" \
+	--binary-image iso-hybrid \
+	--image-name "strata-${STRATA_VERSION}" \
+	--iso-application "Strata" \
+	--iso-publisher "Strata; https://github.com/ChiliChonka/strata" \
+	--iso-volume "Strata ${STRATA_VERSION}" \
+	--mirror-bootstrap "${SNAPSHOT_MIRROR}" \
+	--mirror-chroot "${SNAPSHOT_MIRROR}" \
+	--mirror-chroot-security "${SNAPSHOT_SECURITY}" \
+	--mirror-binary "${LIVE_MIRROR}" \
+	--mirror-binary-security "${LIVE_SECURITY}" \
+	--bootloaders "syslinux,grub-efi" \
+	--uefi-secure-boot enable \
+	--debian-installer none \
+	--firmware-chroot true \
+	--firmware-binary true \
+	--apt-recommends true \
+	--apt-options "--yes -o Acquire::Check-Valid-Until=false" \
+	--updates true \
+	--security true \
+	--cache-packages true \
+	"${@}"

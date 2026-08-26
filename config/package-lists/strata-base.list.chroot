@@ -1,0 +1,15 @@
+# Base utilities that a minimal desktop still needs to be usable and
+# recoverable. Kept deliberately short.
+
+# Console text editor, so a broken graphical session is still fixable.
+nano
+
+# Fetching things over the network from a shell.
+ca-certificates
+curl
+
+# Filesystem tooling for the ext4 default (ADR-0007).
+e2fsprogs
+
+# Time synchronisation.
+systemd-timesyncd

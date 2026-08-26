@@ -1,0 +1,71 @@
+# Strata minimal desktop.
+#
+# Every package here traces to ADR-0009 or ADR-0010. Adding anything means
+# arguing against ADR-0003 first.
+
+# Compositor and shell
+hyprland
+quickshell
+
+# ADR-0010: the Qt6 Wayland platform plugin (platforms/libqwayland.so) lives in
+# this package. quickshell already depends on it, but Calamares relies on it too
+# and would fall back to libqxcb.so with no error if that dependency ever
+# changed. Pinned explicitly so the installer's Wayland path cannot break
+# silently.
+libqt6waylandclient6
+
+# ADR-0010: arrives via hyprland's Recommends, listed explicitly so it does not
+# depend on recommends handling staying as it is.
+xwayland
+
+# Portals. xdg-desktop-portal-hyprland does not implement FileChooser, so the
+# GTK backend is required for file dialogs.
+xdg-desktop-portal
+xdg-desktop-portal-hyprland
+xdg-desktop-portal-gtk
+
+# Terminal and launcher. foot renders on the CPU with no EGL dependency, which
+# keeps it working in the QEMU environment CI validates images in. fuzzel shares
+# foot's rendering stack, so it costs almost nothing on top.
+foot
+fuzzel
+
+# Notifications. NOT the package named `mako` — that source package builds
+# python3-mako, a Python template library.
+mako-notifier
+
+# Clipboard. cliphist exists because on Wayland the clipboard dies with the
+# source application; copying and then closing the app loses the content.
+wl-clipboard
+cliphist
+
+# Screenshots
+grim
+slurp
+
+# Lock, idle, wallpaper
+hyprlock
+hypridle
+hyprpaper
+
+# Polkit. hyprpolkitagent needs Qt6, which quickshell already requires, so its
+# marginal cost is lower than lxqt-policykit, which pulls in lxqt-session.
+hyprpolkitagent
+
+# Session. ADR-0008: greetd with tuigreet, chosen so the login path has no GPU
+# or Wayland dependency.
+greetd
+tuigreet
+
+# Audio
+pipewire
+pipewire-audio
+pipewire-pulse
+wireplumber
+
+# Network. No graphical applet: quickshell shows state, nmtui configures.
+network-manager
+
+# Fonts. Neither foot nor fuzzel depends on a font, and without one the desktop
+# starts with no usable text.
+fonts-dejavu-core
