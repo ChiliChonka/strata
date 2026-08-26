@@ -1,0 +1,25 @@
+# PAM configuration for greetd, with the locale environment added.
+#
+# Debian's stock file is just the three @include lines below. That leaves a
+# greetd session with no LANG at all, because common-session carries no pam_env
+# and /etc/environment is empty. The result is a desktop running under the "C"
+# locale: foot reports «'C' is not a UTF-8 locale, falling back to 'C.UTF-8'»,
+# and anything less forgiving mishandles non-ASCII text outright.
+#
+# The two pam_env lines are copied from Debian's own /etc/pam.d/su, which solves
+# exactly this problem the same way. They read whatever the system locale is
+# rather than pinning one, so a user who picks a different locale during
+# installation gets theirs.
+#
+# NOTE: this file is a dpkg conffile owned by the greetd package, so upgrading
+# greetd will report it as locally modified. Strata already accepts that for
+# /etc/greetd/config.toml; keep both in mind when greetd changes upstream.
+
+@include common-auth
+@include common-account
+
+# Read /etc/environment, then the Debian-specific locale file.
+session       required   pam_env.so readenv=1
+session       required   pam_env.so readenv=1 envfile=/etc/default/locale
+
+@include common-session

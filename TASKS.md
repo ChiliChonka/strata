@@ -70,7 +70,8 @@ Not packaged in Testing, do not plan around them: `regreet`, `hyprshot`,
 - [ ] Design QEMU Secure Boot testing with `ovmf` secboot variables
 - [ ] Validate GitHub Actions runner constraints: disk space for live-build,
       KVM availability for the QEMU test, snapshot.debian.org throughput
-- [ ] Define the minimal default keybinding set
+- [x] Define the minimal default keybinding set — every capability AGENTS.md
+      requires, plus the ADR-0009 tools that would otherwise be unreachable
 - [x] Define the repository directory layout — `auto/`, `config/`, `scripts/`,
       `tests/`, per live-build convention
 
@@ -85,13 +86,13 @@ every architectural decision needed to begin Phase 2.
 - [x] Add a container build environment so non-Debian hosts can build
       (`Containerfile`, `scripts/build-in-docker.sh`)
 - [x] Add explicit package lists
-- [ ] Add Hyprland minimal config under `/etc/strata/hypr/` — **note: Hyprland
-      0.56 in Debian uses Lua, the template is `/usr/share/hypr/hyprland.lua`,
-      not `hyprland.conf`. Its default sets `local terminal = "kitty"`, which
-      Strata does not install (ADR-0009 chose `foot`), so SUPER+Q is dead until
-      Strata ships its own config.**
-- [ ] Add Quickshell minimal config — installed but never started; nothing
-      execs it, so the session comes up bare
+- [x] Add Hyprland minimal config under `/etc/strata/hypr/hyprland.lua` (Lua
+      format, as Hyprland 0.56 in Debian requires), loaded by
+      `/etc/skel/.config/hypr/hyprland.lua` via `dofile` so user settings
+      override without editing a Strata file
+- [x] Add Quickshell minimal config — `/etc/xdg/quickshell/shell.qml`, one bar
+      per monitor with workspaces, clock, volume and battery; a user's
+      `~/.config/quickshell/shell.qml` replaces it
 - [ ] Configure PipeWire/WirePlumber
 - [ ] Configure portals
 - [ ] Configure Polkit

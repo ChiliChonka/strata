@@ -15,6 +15,10 @@
 # documented fallback. That is the point of choosing a greeter with no GPU or
 # Wayland dependency.
 
+# NOTE: this file is a dpkg conffile owned by the greetd package. Upgrading
+# greetd will report it as locally modified. The same applies to
+# /etc/pam.d/greetd, which Strata also overrides.
+
 [terminal]
 # vt 7, not 1. Debian's greetd.service declares Conflicts=getty@tty7.service and
 # After=getty@tty7.service, so tty7 is the VT it is built to own. On vt 1 the

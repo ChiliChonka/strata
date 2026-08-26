@@ -10,7 +10,7 @@
 # reproduced by OVMF.
 #
 # Usage:
-#   ./tests/qemu-smoke-test.sh [image.iso] [seconds] [user:password]
+#   ./tests/qemu-smoke-test.sh [image.iso] [seconds] [user:password] [chord,chord]
 #
 # Passing credentials makes the test type them into the greeter once it appears,
 # which is how the session itself — Hyprland and Quickshell — gets exercised
@@ -42,6 +42,10 @@ fi
 
 duration="${2:-150}"
 login="${3:-}"
+# Comma-separated key chords sent once the session should be up, e.g.
+# "meta_l-ret" to open a terminal. Proves the keybindings work, not just that
+# the compositor started.
+chords="${4:-}"
 
 command -v qemu-system-x86_64 >/dev/null || die "qemu-system-x86_64 not installed."
 [[ -f "$OVMF_CODE" ]] || die "$OVMF_CODE missing. apt install ovmf"
@@ -98,13 +102,14 @@ cleanup() {
 }
 trap cleanup EXIT
 
-QMP_SOCK="$qmp" OUTDIR="$outdir" DURATION="$duration" LOGIN="$login" python3 - <<'PYEOF'
+QMP_SOCK="$qmp" OUTDIR="$outdir" DURATION="$duration" LOGIN="$login" CHORDS="$chords" python3 - <<'PYEOF'
 import json, os, socket, time, sys
 
 sock_path = os.environ["QMP_SOCK"]
 outdir = os.path.abspath(os.environ["OUTDIR"])
 duration = int(os.environ["DURATION"])
 login = os.environ.get("LOGIN", "")
+chords = [c for c in os.environ.get("CHORDS", "").split(",") if c]
 
 for _ in range(50):
     if os.path.exists(sock_path):
@@ -150,6 +155,11 @@ def typewrite(text):
 def press(key):
     cmd("send-key", keys=[{"type": "qcode", "data": key}])
 
+def chord(spec):
+    """Send "meta_l-ret" as a simultaneous key combination."""
+    keys = [{"type": "qcode", "data": k} for k in spec.split("-")]
+    cmd("send-key", keys=keys)
+
 def shot(label):
     path = os.path.join(outdir, f"{label}.ppm")
     r = cmd("screendump", filename=path)
@@ -167,6 +177,9 @@ if login and ":" in login:
     login_at = 100 if duration > 160 else max(60, duration // 2)
 
 typed = False
+sent_chords = False
+# Late enough that the session is up, but with time left to screenshot the result.
+chord_at = 150 if duration > 200 else max(90, duration // 2)
 for m in marks:
     delay = m - (time.time() - start)
     if delay > 0:
@@ -191,6 +204,14 @@ for m in marks:
         typed = True
         time.sleep(3)
         shot("post-login")
+
+    if chords and not sent_chords and m >= chord_at:
+        for c in chords:
+            print(f"    sending chord {c}")
+            chord(c)
+            time.sleep(3)
+        sent_chords = True
+        shot("after-chords")
 
     shot(f"t{m:03d}")
 PYEOF
