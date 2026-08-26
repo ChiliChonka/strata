@@ -126,14 +126,7 @@ jobs:
 
       - name: Verify the snapshot pin did not leak into the installed system
         if: steps.guard.outputs.ready == 'true'
-        run: |
-          set -euo pipefail
-          # ADR-0005: a snapshot URL in the installed sources.list would freeze
-          # every installation at image build date. This must never regress.
-          if grep -rq 'snapshot.debian.org' config/includes.chroot/etc/apt/ 2>/dev/null; then
-            echo "::error::snapshot mirror leaked into the installed sources.list"
-            exit 1
-          fi
+        run: ./tests/check-no-snapshot-leak.sh
 
       - name: Checksums
         if: steps.guard.outputs.ready == 'true'

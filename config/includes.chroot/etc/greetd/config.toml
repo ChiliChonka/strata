@@ -1,0 +1,29 @@
+# Strata session configuration. ADR-0008.
+#
+# greetd starts tuigreet on VT 1; tuigreet authenticates through PAM and
+# launches the selected session.
+#
+# The greeter runs as the _greetd system user, which Debian's greetd package
+# creates via systemd-sysusers. Do not change that name without checking
+# debian/greetd.sysusers.
+#
+# Sessions are read from /usr/share/wayland-sessions, which Debian's hyprland
+# package populates with hyprland.desktop. --cmd is the fallback used when no
+# session has been remembered yet.
+#
+# If this ever fails to start, a plain TTY login remains available and is the
+# documented fallback. That is the point of choosing a greeter with no GPU or
+# Wayland dependency.
+
+[terminal]
+# vt 7, not 1. Debian's greetd.service declares Conflicts=getty@tty7.service and
+# After=getty@tty7.service, so tty7 is the VT it is built to own. On vt 1 the
+# greeter shares the terminal with the kernel console and the live session's
+# autologin getty: console output overwrites the greeter, and keystrokes are
+# split between tuigreet and the shell behind it. Found by the QEMU smoke test,
+# where typing "user" put "us" in the greeter and "er" into a bash prompt.
+vt = 7
+
+[default_session]
+command = "tuigreet --time --remember --remember-session --sessions /usr/share/wayland-sessions --cmd Hyprland"
+user = "_greetd"

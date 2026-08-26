@@ -1,0 +1,70 @@
+#!/bin/sh
+# Strata: log the live user straight into Hyprland.
+#
+# A live image exists so someone can check that their hardware works before
+# committing to an installation (ADR-0006). Stopping them at a login prompt whose
+# credentials are documented nowhere defeats that. Debian's own live images log
+# in automatically for the same reason.
+#
+# This is a live-config component. live-config runs these at boot from
+# /usr/lib/live/config/*, in filename order, so 2000-* runs after 0030-user-setup
+# has created the account. The greetd config is edited before greetd starts:
+# live-config.service is ordered Before=basic.target, greetd.service only after
+# systemd-user-sessions.service.
+#
+# THIS MUST NEVER TAKE EFFECT ON AN INSTALLED SYSTEM. Two independent guards:
+#
+#   1. calamares-settings-debian removes live-config during installation, so the
+#      component is not present on the installed system at all.
+#   2. The check below requires the live medium to be mounted, which it never is
+#      on an installed system.
+#
+# greetd's [initial_session] logs in once per boot. After logout the normal
+# greeter appears, so the live session still allows switching users or sessions.
+
+set -e
+
+GREETD_CONFIG="/etc/greetd/config.toml"
+LIVE_MEDIUM="/run/live/medium"
+
+Init ()
+{
+	# Guard 2: live-boot mounts the live medium here. No medium, no autologin.
+	if [ ! -d "${LIVE_MEDIUM}" ]
+	then
+		exit 0
+	fi
+
+	if [ ! -f "${GREETD_CONFIG}" ]
+	then
+		exit 0
+	fi
+
+	# Already configured, or the component already ran.
+	if grep -q '^\[initial_session\]' "${GREETD_CONFIG}"
+	then
+		exit 0
+	fi
+
+	# shellcheck disable=SC3037  # matches live-config's own components, and
+	# Debian's /bin/sh (dash) supports echo -n
+	echo -n " strata-greetd-autologin"
+}
+
+Config ()
+{
+	cat >> "${GREETD_CONFIG}" << CONFIG
+
+# Appended at boot by /usr/lib/live/config/2000-strata-greetd-autologin.
+# Live session only. Logging out returns to the greeter.
+[initial_session]
+command = "Hyprland"
+user = "${LIVE_USERNAME:-user}"
+CONFIG
+
+	mkdir -p /var/lib/live/config
+	touch /var/lib/live/config/strata-greetd-autologin
+}
+
+Init
+Config

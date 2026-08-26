@@ -252,6 +252,43 @@ later goal, not a release requirement. See
 
 A custom installer is out of scope.
 
+## Building
+
+Roughly 20 GB of free disk space is required either way.
+
+### On any host, via a container
+
+This is the normal path. It needs only Docker or Podman:
+
+```bash
+./scripts/build-in-docker.sh
+```
+
+The repository is bind-mounted, so the build writes its working tree and the
+finished ISO into the checkout on the host rather than into container storage.
+
+A container is not merely a convenience. live-build is Debian-specific, and
+Ubuntu ships a fork (3.0~a57) that predates `--uefi-secure-boot` — building
+there would silently produce an image without a signed boot chain, failing
+[ADR-0002](docs/adr/ADR-0002-secure-boot.md).
+
+### On a Debian host, directly
+
+```bash
+sudo apt install live-build
+sudo ./scripts/build.sh
+```
+
+That is the whole build. `scripts/build.sh` is the only supported entry point:
+it resolves a `snapshot.debian.org` timestamp, derives `SOURCE_DATE_EPOCH` from
+it, runs live-build, and writes the ISO, its checksum, and a build manifest.
+
+To rebuild a past image, pass the snapshot timestamp its manifest records:
+
+```bash
+./scripts/build-in-docker.sh 20260801T000000Z
+```
+
 ## Testing
 
 Automated validation should use QEMU/KVM where practical.

@@ -71,32 +71,48 @@ Not packaged in Testing, do not plan around them: `regreet`, `hyprshot`,
 - [ ] Validate GitHub Actions runner constraints: disk space for live-build,
       KVM availability for the QEMU test, snapshot.debian.org throughput
 - [ ] Define the minimal default keybinding set
-- [ ] Define the repository directory layout
+- [x] Define the repository directory layout — `auto/`, `config/`, `scripts/`,
+      `tests/`, per live-build convention
 
 **The design phase is otherwise complete.** ADR-0001 through ADR-0010 cover
 every architectural decision needed to begin Phase 2.
 
 ## Phase 2 — MVP Build
 
-- [ ] Create live-build configuration with snapshot-pinned bootstrap and chroot
+- [x] Create live-build configuration with snapshot-pinned bootstrap and chroot
       mirrors, and live binary mirrors (ADR-0005)
-- [ ] Add `scripts/build.sh` as the single documented build entry point
-- [ ] Add explicit package lists
-- [ ] Add Hyprland minimal config under `/etc/strata/hypr/`
-- [ ] Add Quickshell minimal config
-- [ ] Configure greetd to launch tuigreet, with TTY login documented as fallback
+- [x] Add `scripts/build.sh` as the single documented build entry point
+- [x] Add a container build environment so non-Debian hosts can build
+      (`Containerfile`, `scripts/build-in-docker.sh`)
+- [x] Add explicit package lists
+- [ ] Add Hyprland minimal config under `/etc/strata/hypr/` — **note: Hyprland
+      0.56 in Debian uses Lua, the template is `/usr/share/hypr/hyprland.lua`,
+      not `hyprland.conf`. Its default sets `local terminal = "kitty"`, which
+      Strata does not install (ADR-0009 chose `foot`), so SUPER+Q is dead until
+      Strata ships its own config.**
+- [ ] Add Quickshell minimal config — installed but never started; nothing
+      execs it, so the session comes up bare
 - [ ] Configure PipeWire/WirePlumber
 - [ ] Configure portals
 - [ ] Configure Polkit
-- [ ] Configure session startup and greeter
+- [x] Configure session startup and greeter (greetd + tuigreet on vt 7 —
+      vt 1 collides with the console and the live autologin getty)
+- [x] Autologin for the live session only, via a live-config component
+- [x] Set the live hostname to `strata` instead of live-config's `debian`
 - [ ] Configure Calamares via `calamares-settings-debian`
-- [ ] Produce first ISO
-- [ ] Test UEFI boot
+- [x] Produce first ISO — `strata-2026.08.26-amd64.iso`, 1.5 GB, built in 14 min
+      from snapshot `20260826T000000Z`, 897 packages
+- [x] Test UEFI boot — QEMU with OVMF, `tests/qemu-smoke-test.sh`
+- [x] Test Secure Boot in QEMU with Microsoft keys enrolled — shim and GRUB
+      signatures verified with sbverify
 - [ ] Test Secure Boot on real hardware, not only QEMU
-- [ ] Test the live session before installation
+- [x] Test the live session before installation — boots unattended into a
+      Hyprland session via greetd autologin
 - [ ] Test installation
 - [ ] Test installed boot
-- [ ] Test that the installed `sources.list` points at the live Debian archive
+- [x] Add regression test that the installed `sources.list` points at the live
+      Debian archive (`tests/check-no-snapshot-leak.sh`) — verified against a
+      real image and against a planted leak
 - [ ] Test networking, audio, Hyprland, Quickshell
 
 ## Phase 3 — CI and Release

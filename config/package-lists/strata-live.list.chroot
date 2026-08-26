@@ -1,0 +1,8 @@
+# Packages needed only in the live session.
+#
+# ADR-0006: installation goes through Calamares from the live session.
+# live-boot and live-config are added by live-build itself for live systems and
+# are deliberately not duplicated here.
+
+calamares
+calamares-settings-debian
