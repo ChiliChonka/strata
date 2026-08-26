@@ -78,6 +78,11 @@ log "Checking the snapshot pin did not reach the installed sources.list"
 log "lb build (this takes a while)"
 lb build
 
+# Re-run against the finished image. Only now can the check read the
+# sources.list that an installed system actually inherits (ADR-0005).
+log "Re-checking the snapshot pin against the built image"
+./tests/check-no-snapshot-leak.sh
+
 # --- Artifacts -------------------------------------------------------------
 
 # live-build emits strata-<version>-<arch>.hybrid.iso; the published name drops
@@ -92,6 +97,11 @@ sha256sum "$final" > "${final}.sha256"
 
 log "Writing build manifest"
 manifest="manifest-${STRATA_VERSION}.txt"
+
+git_commit="$(git -c "safe.directory=${REPO_ROOT}" -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
+if [[ "$git_commit" == "unknown" ]]; then
+	warn "could not determine the git commit; the manifest will not identify this build"
+fi
 {
 	echo "# Strata build manifest"
 	echo "snapshot: $snapshot"
@@ -99,7 +109,11 @@ manifest="manifest-${STRATA_VERSION}.txt"
 	echo "suite: testing"
 	echo "source_date_epoch: $SOURCE_DATE_EPOCH"
 	echo "version: $STRATA_VERSION"
-	echo "git_commit: $(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
+	# -c safe.directory is required because the build runs as root against a
+	# repository owned by the invoking user, which git otherwise refuses to read.
+	# Without it this silently became "unknown", defeating ADR-0005's requirement
+	# that a release records the commit it was built from.
+	echo "git_commit: ${git_commit}"
 	echo "live_build: $(dpkg-query -W -f='${Version}' live-build 2>/dev/null || echo unknown)"
 	# shellcheck disable=SC1091  # /etc/os-release is not present at lint time
 	echo "build_host: $(. /etc/os-release && echo "$PRETTY_NAME")"

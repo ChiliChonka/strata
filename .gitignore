@@ -7,7 +7,8 @@
 /.build/
 /cache/
 /chroot/
-/chroot.files*
+# chroot.files, chroot.packages.install, chroot.packages.live
+/chroot.*
 /binary/
 /binary.*
 /local/

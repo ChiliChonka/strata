@@ -93,14 +93,16 @@ every architectural decision needed to begin Phase 2.
 - [ ] Configure Polkit
 - [x] Configure session startup and greeter (greetd + tuigreet)
 - [ ] Configure Calamares via `calamares-settings-debian`
-- [ ] Produce first ISO
+- [x] Produce first ISO — `strata-2026.08.26-amd64.iso`, 1.5 GB, built in 14 min
+      from snapshot `20260826T000000Z`, 897 packages
 - [ ] Test UEFI boot
 - [ ] Test Secure Boot on real hardware, not only QEMU
 - [ ] Test the live session before installation
 - [ ] Test installation
 - [ ] Test installed boot
 - [x] Add regression test that the installed `sources.list` points at the live
-      Debian archive (`tests/check-no-snapshot-leak.sh`)
+      Debian archive (`tests/check-no-snapshot-leak.sh`) — verified against a
+      real image and against a planted leak
 - [ ] Test networking, audio, Hyprland, Quickshell
 
 ## Phase 3 — CI and Release
