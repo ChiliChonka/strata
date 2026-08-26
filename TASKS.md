@@ -31,34 +31,43 @@ Package availability verified against Debian Testing (forky), amd64,
 - [x] Compare live-build vs Debian Installer → ADR-0006
 - [x] Decide whether Live mode is required for MVP → yes, ADR-0006
 - [x] Define what "reproducible" means → ADR-0005
+- [x] Decide ext4 vs Btrfs → ext4, ADR-0007
+- [x] Select greeter and session model → greetd + tuigreet, ADR-0008
+- [x] Select terminal, launcher, notifications, clipboard, screenshot, lock,
+      idle, Polkit agent, portals and fonts → ADR-0009
+- [x] Determine portal backend combination → hyprland + gtk, ADR-0009
+- [x] Identify Quickshell 0.3.0 runtime dependencies → Qt6, QML, EGL, PipeWire,
+      PAM, polkit-agent
 
 Candidate packages confirmed present in Testing, pending selection:
 
 | Role | Candidates in Testing |
 |---|---|
-| Terminal | `foot` 1.27.0, `alacritty` 0.16.1, `kitty` 0.48.2 |
-| Launcher | `fuzzel` 1.12.0, `wofi` 1.5.3, `rofi` 2.0.0 |
-| Notifications | `mako` 1.3.10, `sway-notification-center` 0.12.6 |
-| Clipboard | `wl-clipboard` 2.3.0, `cliphist` 0.5.0 |
-| Screenshots | `grim` 1.5.0, `slurp` 1.5.0 |
-| Lock / idle | `hyprlock` 0.9.6, `hypridle` 0.1.8 |
-| Polkit agent | `hyprpolkitagent` 0.1.3, `lxqt-policykit` 2.4.0, `mate-polkit` 1.26.1 |
-| Portals | `xdg-desktop-portal` 1.22.1, `-hyprland` 1.4.1, `-gtk` 1.15.3 |
-| Greeter | `greetd` 0.10.3 + `tuigreet` 0.9.1 or `gtkgreet` 0.8 under `cage` 0.3.1 |
-| Wallpaper | `hyprpaper` 0.8.4 |
-| Logout | `wlogout` 1.2.2 |
+| Terminal | **`foot` 1.27.0** · `alacritty`, `kitty` |
+| Launcher | **`fuzzel` 1.12.0** · `wofi`, `rofi` |
+| Notifications | **`mako-notifier` 1.11.0** · `sway-notification-center` |
+| Clipboard | **`wl-clipboard` 2.3.0 + `cliphist` 0.5.0** |
+| Screenshots | **`grim` 1.5.0 + `slurp` 1.5.0** |
+| Lock / idle | **`hyprlock` 0.9.6 + `hypridle` 0.1.8** |
+| Polkit agent | **`hyprpolkitagent` 0.1.3** · `lxqt-policykit`, `mate-polkit` |
+| Portals | **`xdg-desktop-portal` 1.22.1 + `-hyprland` 1.4.1 + `-gtk` 1.15.3** |
+| Greeter | **`greetd` 0.10.3 + `tuigreet` 0.9.1** · `gtkgreet` + `cage` |
+| Wallpaper | **`hyprpaper` 0.8.4** |
+| Fonts | **`fonts-dejavu-core`** |
+
+Selections in bold are settled by ADR-0008 and ADR-0009.
+
+**Naming trap:** the Debian binary package for the notification daemon is
+`mako-notifier`. The source package `mako` builds `python3-mako`, the Python
+template library — not a notification daemon.
 
 Not packaged in Testing, do not plan around them: `regreet`, `hyprshot`,
-`grub-btrfs`, `bcachefs-tools`.
+`grub-btrfs`, `bcachefs-tools`, `zfsutils-linux`.
 
 ### Open
 
-- [ ] Select terminal, launcher, notifications, clipboard, screenshot, lock,
-      idle, and Polkit agent → ADR-0009
-- [ ] Determine portal backend combination (hyprland + gtk fallback)
-- [ ] Identify remaining runtime dependencies of Quickshell 0.3.0
-- [ ] Select greeter → ADR-0008
-- [ ] Decide ext4 vs Btrfs → ADR-0007
+- [ ] **Decide XWayland in the base image → ADR-0010. Blocks freezing the
+      package lists.**
 - [ ] Design QEMU Secure Boot testing with `ovmf` secboot variables
 - [ ] Validate GitHub Actions runner constraints: disk space for live-build,
       KVM availability for the QEMU test, snapshot.debian.org throughput
@@ -74,6 +83,7 @@ Not packaged in Testing, do not plan around them: `regreet`, `hyprshot`,
 - [ ] Add explicit package lists
 - [ ] Add Hyprland minimal config under `/etc/strata/hypr/`
 - [ ] Add Quickshell minimal config
+- [ ] Configure greetd to launch tuigreet, with TTY login documented as fallback
 - [ ] Configure PipeWire/WirePlumber
 - [ ] Configure portals
 - [ ] Configure Polkit

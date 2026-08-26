@@ -10,14 +10,15 @@ Significant architectural decisions are recorded here, one file per decision.
 | [0004](ADR-0004-branding-without-desktop-fork.md) | Branding without building a custom desktop environment | Accepted |
 | [0005](ADR-0005-build-reproducibility-and-snapshot-pinning.md) | Build reproducibility and snapshot pinning | Accepted |
 | [0006](ADR-0006-live-iso-with-calamares-installer.md) | Live ISO with Calamares as the installation path | Accepted |
+| [0007](ADR-0007-default-filesystem-ext4.md) | Default filesystem is ext4 | Accepted |
+| [0008](ADR-0008-session-and-greeter.md) | Session management with greetd and tuigreet | Accepted |
+| [0009](ADR-0009-default-package-selection.md) | Default package selection for the minimal desktop | Accepted |
 
 ## Pending
 
 | ADR | Decision | Status |
 |---|---|---|
-| 0007 | Default filesystem: ext4 vs Btrfs | Proposed, not written |
-| 0008 | Greeter and session strategy | Proposed, not written |
-| 0009 | Default package selection for the minimal desktop | Proposed, not written |
+| 0010 | XWayland in the base image | Open, blocks freezing the package lists |
 
 ## Format
 
