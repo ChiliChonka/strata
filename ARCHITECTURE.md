@@ -76,16 +76,26 @@ Use NetworkManager unless a strong reason exists to choose otherwise.
 
 ## Session Model
 
-Investigate the smallest reliable session/login approach.
+The session layer is chosen for reliability and dependency footprint first.
+Appearance is a later concern (ADR-0004).
+
+`greetd` is the working assumption: it is in Debian Testing, it is small, and it
+is Wayland-native. The remaining question is which greeter runs on top of it.
 
 Candidate order:
 
-1. TTY login + automatic/manual Hyprland start
-2. greetd
-3. another lightweight Wayland-capable greeter
-4. traditional display manager
+1. greetd with a packaged greeter — `tuigreet` (text) or `gtkgreet` under `cage`
+   (graphical, CSS themable)
+2. TTY login with Hyprland started from the shell profile — the fallback that
+   always works and is trivially debuggable
+3. a traditional display manager, only with a concrete technical justification
 
-The default should remain simple and debuggable.
+`ReGreet` would be the natural graphical choice but is **not packaged in Debian
+Testing**. Using it would mean building from source, which ADR-0001 rules out
+unless a dedicated ADR accepts the exception.
+
+The final choice belongs in ADR-0008. Whatever is selected, starting a session
+must remain debuggable from a TTY without any graphical component running.
 
 ## Quickshell Design
 
@@ -110,16 +120,16 @@ The MVP should avoid building a full desktop environment.
 
 Keep project defaults separate from user overrides.
 
-Suggested approach:
+Approach:
 
 ```text
-/etc/<project>/hypr/
-~/.config/hypr/
+/etc/strata/hypr/     Strata defaults, shipped by the image
+~/.config/hypr/       user configuration, always takes precedence
 ```
 
-or another Debian-compatible layout selected during implementation.
-
-User configuration must be easy to override.
+Strata defaults are reference material. The image never edits a user's
+configuration in place, and a user never has to edit a Strata default to
+override it.
 
 ## AI Integration
 
@@ -175,27 +185,38 @@ Image updates:
 
 ```text
 GitHub Actions
- -> build current Testing snapshot/image
+ -> pin a snapshot.debian.org timestamp
+ -> build image from the pinned archive state
  -> validate
+ -> record build manifest
  -> publish image
 ```
 
 These are intentionally separate concerns.
 
+The snapshot pin exists so a published image can be rebuilt later. It is a
+build-time mechanism only: the installed system's `sources.list` always points
+at the live Debian archive, so installed systems keep receiving updates
+normally. See ADR-0005.
+
 
 ## Login and Branding Layer
 
-Strata should eventually provide a lightweight branded login experience.
+The MVP does not promise a branded graphical login. It ships whichever packaged
+greeter has the best technical fit, styled only to the extent that greeter
+supports out of the box.
 
-Desired presentation:
+Required for the MVP:
 
-- Strata logo
-- simple background
+- reliable authentication
 - clear username/password controls
-- minimal status indicators
 - keyboard-first operation
 
-The login system must be selected based on reliability and dependency footprint first, theming second.
+Deferred to a later branding milestone:
+
+- Strata logo on the greeter
+- custom background
+- multi-monitor and HiDPI polish
 
 Do not implement authentication inside Quickshell unless that approach is mature, secure, and clearly preferable to established greeter tooling.
 

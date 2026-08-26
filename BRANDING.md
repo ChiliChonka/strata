@@ -79,7 +79,10 @@ One excellent default is preferable to a large wallpaper pack.
 
 ## Login Screen
 
-Desired greeter:
+**Not an MVP deliverable.** The MVP ships a packaged greeter with default
+styling. Greeter branding is a follow-up milestone.
+
+The eventual target, once a greeter is settled in ADR-0008:
 
 - subtle Strata logo
 - one background
@@ -88,7 +91,14 @@ Desired greeter:
 - keyboard friendly
 - accessible contrast
 
-Authentication reliability takes precedence over styling.
+Constraint: greeter branding must work within what a Debian-packaged greeter
+already supports. `tuigreet` is text-only and takes no logo at all; `gtkgreet`
+accepts CSS but has limited background and multi-monitor handling. If the
+desired look requires an unpackaged greeter such as ReGreet, that needs its own
+ADR accepting the departure from ADR-0001 — it is not something to slip in
+quietly for aesthetic reasons.
+
+Authentication reliability takes precedence over styling. Always.
 
 ## Quickshell Styling
 

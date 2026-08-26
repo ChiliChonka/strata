@@ -1,0 +1,80 @@
+name: Bug report
+description: Something in a Strata image does not work
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Strata is Debian, not a Debian fork. Before filing: if the problem
+        reproduces on plain Debian Testing with the same packages, it belongs
+        upstream in Debian, not here.
+
+  - type: input
+    id: version
+    attributes:
+      label: Image version
+      description: From `/etc/strata-release`, e.g. 2026.08.26
+      placeholder: "2026.08.26"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Where does it happen?
+      options:
+        - Booting the live ISO
+        - Installing with Calamares
+        - Booting the installed system
+        - Hyprland session
+        - Quickshell
+        - Audio / PipeWire
+        - Network
+        - Secure Boot
+        - Build (local or CI)
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: secureboot
+    attributes:
+      label: Secure Boot
+      options:
+        - label: Secure Boot was enabled
+        - label: I have verified the same behaviour with Secure Boot disabled
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect, and what happened instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Hardware
+      description: Machine, GPU, and whether this is bare metal or a VM.
+      placeholder: |
+        Machine: ThinkPad T14 Gen 4
+        GPU: AMD Radeon 780M
+        Bare metal / VM: bare metal
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: >-
+        `journalctl -b -p warning`, and for session problems the Hyprland or
+        Quickshell log. Paste as text, not screenshots.
+      render: shell

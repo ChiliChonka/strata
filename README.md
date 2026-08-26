@@ -4,7 +4,9 @@
 
 ## Status
 
-Early project / architecture phase.
+Early project / architecture phase. No image is published yet.
+
+Key decisions are recorded in [docs/adr/](docs/adr/).
 
 ## What this project is
 
@@ -220,24 +222,35 @@ Instead, once per month CI should evaluate whether relevant upstream components 
 
 If meaningful changes exist, a new image is built, tested, checksummed, and published.
 
-Expected naming style:
+Artifact naming:
 
 ```text
-project-2026.08.26-amd64.iso
-project-2026.08.26-amd64.iso.sha256
+strata-2026.08.26-amd64.iso
+strata-2026.08.26-amd64.iso.sha256
+strata-2026.08.26-amd64.iso.sig
 ```
+
+Each release also ships a build manifest recording the exact
+`snapshot.debian.org` timestamp and package versions the image was built from,
+so any published image can be rebuilt later. See
+[ADR-0005](docs/adr/ADR-0005-build-reproducibility-and-snapshot-pinning.md).
 
 ## Build philosophy
 
-The preferred build stack is Debian-native.
+The build stack is Debian-native: **`live-build`**, producing a **live ISO** with
+**Calamares** as the installer, configured through the official
+`calamares-settings-debian` package.
 
-The project should investigate:
+That is the same path the official Debian Live images take. See
+[ADR-0006](docs/adr/ADR-0006-live-iso-with-calamares-installer.md).
 
-- `live-build`,
-- Debian Installer integration,
-- Debian live tooling.
+Builds are pinned to a `snapshot.debian.org` timestamp so a published image can
+be rebuilt from the same package set later. "Reproducible" here means
+script-driven repeatability plus snapshot pinning — bit-identical ISOs are a
+later goal, not a release requirement. See
+[ADR-0005](docs/adr/ADR-0005-build-reproducibility-and-snapshot-pinning.md).
 
-A custom installer should be avoided unless Debian tooling proves insufficient.
+A custom installer is out of scope.
 
 ## Testing
 
@@ -263,6 +276,15 @@ The MVP is:
 
 > A reproducibly built Debian Testing amd64 ISO that boots with Secure Boot enabled and provides a functional minimal Hyprland + Quickshell desktop.
 
+## License
+
+Strata's own configuration, scripts, and documentation are MIT licensed.
+Original visual assets are CC BY-SA 4.0. A built ISO is an aggregation of Debian
+packages, each keeping its own upstream license.
+
+See [LICENSES.md](LICENSES.md) for details, including what the license does and
+does not permit regarding the Strata name.
+
 ## Contributing
 
 Contributions should preserve:
@@ -284,13 +306,16 @@ If yes, prefer that solution.
 
 Strata has its own lightweight visual identity without becoming a custom desktop environment.
 
-Planned branding includes:
+Planned for the MVP:
 
 - Strata logo and wordmark
-- minimal login/greeter branding
 - one default wallpaper
 - subtle Quickshell styling
 - project name/version presentation
+
+Deferred to a later milestone:
+
+- login/greeter branding
 
 The rule is simple:
 
@@ -298,18 +323,18 @@ The rule is simple:
 
 ## Login experience
 
-Strata should provide a clean, modern, lightweight login experience.
+Strata aims for a small, reliable, keyboard-friendly login.
 
-The implementation is intentionally not fixed yet. The design phase must compare lightweight Wayland-compatible greeters and choose the best balance of:
+The working assumption is `greetd` with a Debian-packaged greeter — `tuigreet`
+or `gtkgreet` under `cage`. The final choice is pending an ADR and is made on
+reliability and dependency footprint, not appearance.
 
-- reliability
-- dependency footprint
-- theming
-- keyboard-first operation
-- HiDPI
-- multi-monitor behavior
+A branded greeter with a custom background and the Strata logo is a later
+milestone. The obvious candidate for that, ReGreet, is not currently packaged in
+Debian Testing, and building it from source would require an explicit exception
+to the Debian-first rule.
 
-A custom background and Strata logo are desirable, but not at the expense of login reliability.
+Login reliability wins over login aesthetics, without exception.
 
 ## Why the name Strata?
 

@@ -1,0 +1,65 @@
+# ---------------------------------------------------------------------------
+# live-build working tree
+#
+# live-build runs in the repository root and writes several GB of build state
+# next to the sources. None of it belongs in git.
+# ---------------------------------------------------------------------------
+/.build/
+/cache/
+/chroot/
+/chroot.files*
+/binary/
+/binary.*
+/local/
+/tftpboot/
+/auto/local*
+
+# live-build generates config/{common,bootstrap,chroot,binary,source} from
+# auto/config. Those are generated; the hand-written parts are kept.
+/config/*
+!/config/package-lists/
+!/config/hooks/
+!/config/includes.chroot/
+!/config/includes.binary/
+!/config/includes.installer/
+!/config/archives/
+!/config/preseed/
+!/config/bootloaders/
+
+# ---------------------------------------------------------------------------
+# Build artifacts
+# ---------------------------------------------------------------------------
+*.iso
+*.img
+*.hybrid.iso
+*.squashfs
+*.zsync
+*.contents
+*.packages
+*.files
+*.buildlog
+*.log
+*.sha256
+*.sha512
+*.sig
+*.asc
+
+# Package manifests are published as release artifacts, not committed.
+/manifest-*.txt
+
+# ---------------------------------------------------------------------------
+# QEMU test state
+# ---------------------------------------------------------------------------
+/tests/**/*.qcow2
+/tests/**/*.fd
+/tests/**/OVMF_VARS*.fd
+/tests/**/screenshots/
+
+# ---------------------------------------------------------------------------
+# Editors and OS cruft
+# ---------------------------------------------------------------------------
+*.swp
+*~
+.DS_Store
+/.idea/
+/.vscode/

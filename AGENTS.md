@@ -14,7 +14,8 @@ Build and maintain **Strata**, a minimal, reproducible Debian Testing based Linu
 - Secure Boot support using Debian-native components wherever possible
 - Minimal default software
 - Optional developer and AI-agent tooling installed lazily on demand
-- Reproducible ISO builds
+- Reproducible ISO builds, meaning script-driven repeatability plus snapshot
+  pinning (ADR-0005) — not bit-identical output
 - Monthly release evaluation and image generation
 
 The resulting installed system must remain, as far as practical, a normal Debian Testing system.
@@ -39,7 +40,7 @@ Prefer Debian-native solutions.
 1. Minimal system footprint.
 2. Reliable Secure Boot support.
 3. Current Hyprland and Quickshell from Debian Testing where feasible.
-4. Reproducible ISO creation.
+4. Reproducible ISO creation as defined in ADR-0005.
 5. Easy local rebuilds.
 6. Automated CI validation.
 7. Monthly image publication when meaningful upstream changes exist.
@@ -198,37 +199,50 @@ This documentation should avoid vendor-specific assumptions.
 
 ## Build System
 
-Investigate Debian-native image tooling first.
+**Decided: `live-build`.** It is the Debian-native tool for exactly this job and
+is available in Testing. Do not invent a new build system, and do not wrap
+live-build in an abstraction layer that hides how it works.
 
-Preferred candidates:
+The build must be repeatable from repository contents with no manual
+interaction: a clean checkout plus one documented command produces an image.
 
-1. live-build
-2. Debian Installer based image generation
-3. Debian live tooling
+Every build pins a `snapshot.debian.org` timestamp and exports
+`SOURCE_DATE_EPOCH` derived from that same timestamp (ADR-0005).
 
-Avoid inventing a new build system.
-
-The build must be reproducible from repository contents with minimal manual interaction.
+**Critical constraint.** The snapshot mirror is build-time only. It configures
+`--mirror-bootstrap` and `--mirror-chroot`. The `--mirror-binary` settings, which
+the installed system inherits, must always point at the live Debian archive. A
+snapshot URL reaching an installed `sources.list` freezes that installation and
+cuts it off from security updates.
 
 ## Installer Strategy
 
-Do not build a custom installer unless necessary.
+**Decided: live ISO with Calamares** (ADR-0006).
 
-Evaluate in this order:
+`calamares-settings-debian` is an official Debian package and is what the
+official Debian Live images use. It is the Debian-native path for a live image,
+not a fallback.
 
-1. Debian Installer
-2. Debian Live Installer
-3. Calamares only if Debian-native approaches cannot satisfy usability requirements
+Evaluation order:
 
-The installed result should remain a standard Debian Testing installation.
+1. Debian-native live installation with Calamares via `calamares-settings-debian`
+2. classic Debian Installer, only if it shows a concrete advantage over (1)
+3. anything custom, only with its own ADR
+
+Keep deviations from `calamares-settings-debian` defaults minimal and document
+each one.
+
+The installed result must remain a standard Debian Testing installation.
 
 ## Filesystem
 
-Evaluate ext4 and Btrfs.
+Evaluate ext4 and Btrfs. The decision belongs in ADR-0007.
 
-Default to the simpler and more robust option unless Btrfs provides a clearly documented benefit.
+Default to the simpler and more robust option unless Btrfs provides a clearly
+documented benefit that is deliverable with Debian-packaged tooling alone.
 
-Snapshots must not become mandatory for the MVP.
+Snapshots must not become mandatory for the MVP, and no snapshot workflow may
+require a package that is not in Debian Testing.
 
 ## Updates
 
@@ -264,29 +278,36 @@ Relevant components include:
 - installer components,
 - Secure Boot components.
 
-Prefer date-based image versions such as:
+Use date-based image versions. Artifact names are fixed and used verbatim
+everywhere:
 
 ```text
-2026.08.26
-2026.09.26
+strata-YYYY.MM.DD-amd64.iso
+strata-YYYY.MM.DD-amd64.iso.sha256
+strata-YYYY.MM.DD-amd64.iso.sig
 ```
 
-The agent may propose a better versioning scheme if it remains simple and transparent.
+Do not introduce alternative names or prefixes in documentation, scripts, or
+workflows.
 
 ## CI/CD
 
 GitHub Actions should support:
 
 - scheduled monthly evaluation,
-- manual workflow dispatch,
-- ISO build,
-- package manifest generation,
+- manual workflow dispatch with an explicit snapshot timestamp,
+- ISO build against a pinned snapshot,
+- build manifest generation, recording the snapshot timestamp,
+  `SOURCE_DATE_EPOCH`, git commit, and exact package versions,
 - checksum generation,
 - boot testing,
 - release artifact generation,
 - release publication.
 
 Do not automatically publish broken or untested images.
+
+Watch the image size against GitHub's 2 GiB per-release-asset limit. A live ISO
+with Hyprland and Calamares can approach it.
 
 ## Testing
 
@@ -355,10 +376,11 @@ Do not overbuild the MVP.
 
 ## MVP Definition
 
-A reproducibly built Debian Testing amd64 ISO that:
+A repeatably built, snapshot-pinned Debian Testing amd64 **live ISO** that:
 
 - boots in UEFI mode,
 - supports Secure Boot,
+- provides a usable live session before installation,
 - provides a functional Hyprland session,
 - starts a minimal Quickshell shell,
 - has networking and audio,
@@ -382,25 +404,34 @@ Allowed project-owned visual assets include:
 
 Branding must not require a heavy desktop environment or a large runtime framework.
 
-The login experience must be evaluated in this order:
+The login experience is evaluated on technical fit first, using only greeters
+packaged in Debian Testing:
 
-1. lightweight Wayland-native greeter with theming support,
-2. greetd-compatible graphical greeter,
-3. another lightweight display manager only if technically justified.
+1. `greetd` with `tuigreet` or `gtkgreet` under `cage`,
+2. TTY login with Hyprland started from the shell profile,
+3. a traditional display manager only if technically justified.
 
-The greeter should ideally support:
+`ReGreet` is not packaged in Debian Testing. Do not build it from source without
+an ADR that explicitly accepts the exception to ADR-0001.
+
+Required of the greeter for the MVP:
+
+- reliable username/password login
+- keyboard-first navigation
+
+Desirable later, not MVP requirements:
 
 - Strata logo
 - custom background
-- username/password login
-- keyboard-first navigation
 - HiDPI
 - multi-monitor handling
-- session selection where useful
+- session selection
 
 Boot and authentication reliability take priority over appearance.
 
-For the technical MVP, branding is optional. A polished greeter is a follow-up milestone if it adds meaningful complexity.
+**For the MVP, greeter branding is out of scope.** Ship default greeter styling.
+A branded greeter is a separate milestone that must not be traded against login
+reliability.
 
 ## Branding Asset Policy
 

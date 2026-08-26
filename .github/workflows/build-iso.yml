@@ -1,0 +1,155 @@
+name: Build ISO
+
+# Implements ADR-0005: every build is pinned to a snapshot.debian.org timestamp
+# and records SOURCE_DATE_EPOCH derived from that same timestamp.
+#
+# SCAFFOLD: the build job is skipped until scripts/build.sh exists. The snapshot
+# resolution below is real and runnable today.
+
+on:
+  workflow_dispatch:
+    inputs:
+      snapshot:
+        description: 'snapshot.debian.org timestamp (YYYYMMDDTHHMMSSZ), or "latest"'
+        required: false
+        default: 'latest'
+      publish:
+        description: 'Publish a GitHub release when the build succeeds'
+        type: boolean
+        required: false
+        default: false
+  schedule:
+    # Monthly evaluation, 04:00 UTC on the first of the month.
+    - cron: '0 4 1 * *'
+
+permissions:
+  contents: read
+
+env:
+  DEBIAN_CODENAME: forky
+
+jobs:
+  resolve-snapshot:
+    name: Resolve snapshot timestamp
+    runs-on: ubuntu-latest
+    outputs:
+      snapshot: ${{ steps.pin.outputs.snapshot }}
+      epoch: ${{ steps.pin.outputs.epoch }}
+      version: ${{ steps.pin.outputs.version }}
+    steps:
+      - id: pin
+        name: Pin archive state
+        run: |
+          set -euo pipefail
+          requested='${{ inputs.snapshot }}'
+
+          if [ -z "$requested" ] || [ "$requested" = "latest" ]; then
+            # Midnight UTC today is a timestamp snapshot.debian.org reliably has.
+            snapshot="$(date -u +%Y%m%dT000000Z)"
+          else
+            snapshot="$requested"
+          fi
+
+          if ! [[ "$snapshot" =~ ^[0-9]{8}T[0-9]{6}Z$ ]]; then
+            echo "::error::invalid snapshot timestamp: $snapshot"
+            exit 1
+          fi
+
+          base="https://snapshot.debian.org/archive/debian/${snapshot}"
+          release="${base}/dists/${DEBIAN_CODENAME}/Release"
+
+          echo "Verifying ${release}"
+          if ! curl -fsSL --retry 3 --retry-delay 5 "$release" -o /tmp/Release; then
+            echo "::error::snapshot ${snapshot} does not serve ${DEBIAN_CODENAME}"
+            exit 1
+          fi
+
+          grep -E '^(Origin|Suite|Codename|Date):' /tmp/Release
+
+          # ADR-0005: SOURCE_DATE_EPOCH is derived from the snapshot timestamp so
+          # the two can never drift apart.
+          epoch="$(date -u -d "${snapshot:0:8} ${snapshot:9:2}:${snapshot:11:2}:${snapshot:13:2}" +%s)"
+
+          {
+            echo "snapshot=$snapshot"
+            echo "epoch=$epoch"
+            echo "version=$(date -u -d "@$epoch" +%Y.%m.%d)"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Pinned archive state"
+            echo
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Snapshot | \`$snapshot\` |"
+            echo "| Codename | \`${DEBIAN_CODENAME}\` |"
+            echo "| SOURCE_DATE_EPOCH | \`$epoch\` |"
+            echo "| Image version | \`$(date -u -d "@$epoch" +%Y.%m.%d)\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    name: Build image
+    needs: resolve-snapshot
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check build script exists
+        id: guard
+        run: |
+          if [ -x scripts/build.sh ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::scripts/build.sh does not exist yet — build skipped."
+            echo "Build scaffold is in place; see TASKS.md Phase 2." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Free disk space
+        if: steps.guard.outputs.ready == 'true'
+        run: |
+          # live-build needs well over the ~14 GB a stock runner leaves free.
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          df -h /
+
+      - name: Install live-build
+        if: steps.guard.outputs.ready == 'true'
+        run: sudo apt-get update && sudo apt-get install -y live-build
+
+      - name: Build
+        if: steps.guard.outputs.ready == 'true'
+        env:
+          STRATA_SNAPSHOT: ${{ needs.resolve-snapshot.outputs.snapshot }}
+          STRATA_VERSION: ${{ needs.resolve-snapshot.outputs.version }}
+          SOURCE_DATE_EPOCH: ${{ needs.resolve-snapshot.outputs.epoch }}
+        run: sudo -E ./scripts/build.sh
+
+      - name: Verify the snapshot pin did not leak into the installed system
+        if: steps.guard.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          # ADR-0005: a snapshot URL in the installed sources.list would freeze
+          # every installation at image build date. This must never regress.
+          if grep -rq 'snapshot.debian.org' config/includes.chroot/etc/apt/ 2>/dev/null; then
+            echo "::error::snapshot mirror leaked into the installed sources.list"
+            exit 1
+          fi
+
+      - name: Checksums
+        if: steps.guard.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          for iso in strata-*.iso; do
+            sha256sum "$iso" > "$iso.sha256"
+          done
+
+      - name: Upload artifacts
+        if: steps.guard.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: strata-iso
+          path: |
+            strata-*.iso
+            strata-*.iso.sha256
+            manifest-*.txt
+          if-no-files-found: error

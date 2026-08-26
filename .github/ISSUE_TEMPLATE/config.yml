@@ -1,0 +1,7 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Debian bug
+    url: https://www.debian.org/Bugs/Reporting
+    about: >-
+      Strata ships Debian packages unmodified. If a package misbehaves the same
+      way on plain Debian Testing, report it to Debian instead.

@@ -50,7 +50,7 @@ The MVP must provide:
 - Debian Testing amd64
 - UEFI
 - Secure Boot
-- installable image
+- live ISO with an installable session (ADR-0006)
 - Hyprland
 - Quickshell
 - NetworkManager
@@ -108,7 +108,11 @@ Initial branded surfaces:
 - project logo
 - GitHub README
 - default wallpaper
+
+Deferred to a later milestone:
+
 - login/greeter screen
 - optional boot splash if it can be implemented cleanly
 
-Branding is not a blocker for the technical MVP.
+Branding is not a blocker for the technical MVP, and no branding goal may
+compromise boot or authentication reliability.

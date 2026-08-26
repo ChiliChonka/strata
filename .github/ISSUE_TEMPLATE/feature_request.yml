@@ -1,0 +1,50 @@
+name: Proposal
+description: Suggest a change to Strata
+labels: [proposal]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Strata is deliberately minimal. Proposals that add packages, daemons, or
+        configuration to the default image are held to ADR-0003: the base image
+        contains only what a complete minimal desktop needs, and everything else
+        is an optional layer.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the problem, not the solution you have in mind.
+    validations:
+      required: true
+
+  - type: textarea
+    id: debian-native
+    attributes:
+      label: Can an existing Debian package or configuration solve this?
+      description: >-
+        Per ADR-0001 this is the first question for any change. If a Debian
+        package already does it, say which one and why it is not enough.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Which layer does this belong in?
+      options:
+        - Base image (must justify against ADR-0003)
+        - Optional layer or profile
+        - Build system / CI
+        - Documentation
+        - Branding
+    validations:
+      required: true
+
+  - type: textarea
+    id: cost
+    attributes:
+      label: What does it cost?
+      description: >-
+        Added packages, image size, dependencies, maintenance, Secure Boot
+        implications.
