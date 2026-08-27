@@ -1,0 +1,21 @@
+# Strata's replacement for calamares-settings-debian's launcher entry.
+#
+# Same file name and same Exec on purpose: overriding the entry avoids showing
+# both "Install Debian" and "Install Strata" in the launcher. The wrapper it
+# calls is Debian's and is left alone — it handles the stale live-build fstab,
+# HiDPI scaling and the pkexec hand-off.
+#
+# Keywords carry both names so searching for either finds it.
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Install Strata
+GenericName=Calamares Installer
+Exec=calamares-install-debian
+Comment=Install Strata to disk
+Keywords=calamares;system;install;strata;debian;installer;
+Icon=install-debian
+Terminal=false
+Categories=Qt;System;
+StartupWMClass=calamares
+StartupNotify=True

@@ -138,6 +138,23 @@ every architectural decision needed to begin Phase 2.
 
 ## Phase 5 — Branding
 
+Calamares branding is blocked on artwork, not on configuration. A branding
+component needs an `images:` key with `productIcon`, `productLogo` and
+`productWelcome`; omitting it is a **fatal** error and Calamares dies silently,
+with no window and no dialog — the reason appears only in
+`/root/.cache/calamares/session.log`:
+
+```text
+ERROR: FATAL in "/etc/calamares/branding/strata/branding.desc"
+    invalid node; first invalid key: "images"
+```
+
+`slideshow` and `slideshowAPI` are required too. Until Strata has a logo the
+installer keeps Debian's branding, which ADR-0001 makes defensible: what is
+installed genuinely is Debian Testing. The launcher entry already says
+"Install Strata".
+
+
 Deliberately after a working MVP. Nothing here blocks Phase 2 or 3.
 
 - [ ] Define Strata visual identity: color palette and typography
