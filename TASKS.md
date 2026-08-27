@@ -67,9 +67,17 @@ Not packaged in Testing, do not plan around them: `regreet`, `hyprshot`,
 ### Open
 
 - [x] Decide XWayland in the base image → stays in, ADR-0010
-- [ ] Design QEMU Secure Boot testing with `ovmf` secboot variables
+- [x] Design QEMU Secure Boot testing with `ovmf` secboot variables —
+      `OVMF_CODE_4M.secboot.fd` with `OVMF_VARS_4M.ms.fd`, so the image is
+      validated against Microsoft's keys rather than a permissive firmware
 - [ ] Validate GitHub Actions runner constraints: disk space for live-build,
-      KVM availability for the QEMU test, snapshot.debian.org throughput
+      KVM availability for the QEMU test, snapshot.debian.org throughput.
+      **This one cannot be answered locally.** The workflow is written against
+      the known numbers — a stock runner leaves roughly 14 GB free on `/` and a
+      build needs about 20 GB, so the build job clears the preinstalled
+      toolchains first — but whether that suffices, whether KVM is present, and
+      whether snapshot.debian.org sustains the throughput are only knowable from
+      an actual run. The first `workflow_dispatch` is the experiment.
 - [x] Define the minimal default keybinding set — every capability AGENTS.md
       requires, plus the ADR-0009 tools that would otherwise be unreachable
 - [x] Define the repository directory layout — `auto/`, `config/`, `scripts/`,
@@ -139,14 +147,26 @@ Debian Testing install and belong upstream (ADR-0001).
 
 - [x] Add CI workflow for repository hygiene and shellcheck
 - [x] Add build workflow scaffold with snapshot resolution
-- [ ] Wire the build job to `scripts/build.sh`
-- [ ] Add QEMU smoke tests
-- [ ] Generate SHA256
-- [ ] Generate build manifest (snapshot, epoch, commit, package versions)
-- [ ] Add manual release job
-- [ ] Add monthly scheduled evaluation
-- [ ] Add conditional publish logic
-- [ ] Track ISO size against GitHub's 2 GiB release asset limit
+- [x] Wire the build job to the build scripts — via `build-in-docker.sh`, not
+      by installing live-build on the runner: Ubuntu ships the 3.0~a57 fork
+      that predates `--uefi-secure-boot`, so a runner-native build would have
+      quietly produced images without a signed boot chain
+- [x] Add QEMU smoke tests — `tests/qemu-smoke-test.sh` now returns a verdict
+      rather than only collecting screenshots, and gates the release job.
+      Verified in both directions, including against a deliberately
+      unbootable image
+- [x] Generate SHA256 — in `scripts/build.sh`, and re-verified in the release
+      job before anything is published
+- [x] Generate build manifest (snapshot, epoch, commit, package versions) —
+      in `scripts/build.sh`; published as a release asset
+- [x] Add manual release job — `workflow_dispatch` with a snapshot input and a
+      publish toggle
+- [x] Add monthly scheduled evaluation — cron on the first of the month
+- [x] Add conditional publish logic — a scheduled run publishes only when the
+      package set differs from the last release. Comparing package versions
+      rather than snapshot timestamps, since those differ every single day
+- [x] Track ISO size against GitHub's 2 GiB release asset limit — the build
+      fails outright above it, and warns within 200 MB of it
 
 ## Phase 4 — Optional Agent Support
 
