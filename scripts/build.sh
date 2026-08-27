@@ -66,6 +66,19 @@ log "Image version     $STRATA_VERSION"
 
 cd "$REPO_ROOT"
 
+# --- Test tooling ----------------------------------------------------------
+#
+# Removed unconditionally, then re-added only on request. Doing it in this order
+# means a release build cannot inherit the list from an interrupted test build:
+# forgetting to clean up is not a failure mode, because cleanup is not optional.
+readonly TEST_LIST="config/package-lists/strata-test-tools.list.chroot"
+rm -f "$TEST_LIST"
+if [[ "${STRATA_TEST_TOOLS:-0}" == "1" ]]; then
+	warn "STRATA_TEST_TOOLS=1 — building a TEST image, not a release image"
+	cp tests/packages/test-tools.list.chroot "$TEST_LIST"
+	log "Added $(grep -cvE '^\s*(#|$)' "$TEST_LIST") test package(s)"
+fi
+
 # Deliberately NOT --purge. Per live-build's clean script, --purge additionally
 # does `rm -rf cache`, which destroys the package cache that --cache-packages
 # built up, forcing a full re-download from the rate-limited snapshot archive on

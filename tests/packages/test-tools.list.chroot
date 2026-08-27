@@ -1,0 +1,21 @@
+# Packages for TEST images only. Never part of a release.
+#
+# This file lives under tests/ on purpose: live-build reads every
+# config/package-lists/*.list.chroot it finds, so keeping it out of that
+# directory is what makes exclusion the default rather than something to
+# remember. scripts/build.sh copies it in only when STRATA_TEST_TOOLS=1, and
+# removes the copy unconditionally at the start of every build — so an
+# interrupted test build cannot leave it behind for a release build to inherit.
+#
+# qemu-guest-agent lets the host run commands inside the guest over a
+# virtio-serial channel and read their real output, instead of typing into the
+# VM through simulated keystrokes and reading results off screenshots. That
+# difference is not cosmetic: the installed system tracking Debian stable
+# instead of testing went unnoticed by every automated check and was found by a
+# human running `cat /etc/apt/sources.list` by hand. With guest-exec, that is a
+# test.
+#
+# It is preferred over openssh-server because it opens no network port, needs no
+# key management, and does nothing at all without the virtio channel QEMU
+# provides — so even if it did escape into an image, it would not be reachable.
+qemu-guest-agent

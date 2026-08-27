@@ -102,6 +102,7 @@ trap fix_ownership EXIT
 "$RUNTIME" run --rm --privileged \
 	--volume "${REPO_ROOT}:/build" \
 	--env "DEBIAN_CODENAME=${DEBIAN_CODENAME:-forky}" \
+	--env "STRATA_TEST_TOOLS=${STRATA_TEST_TOOLS:-0}" \
 	--workdir /build \
 	"$IMAGE" \
 	./scripts/build.sh "$@"

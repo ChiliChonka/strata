@@ -54,6 +54,9 @@ qemu-system-x86_64 \
 	-nic user,model=virtio-net-pci \
 	-audiodev pipewire,id=snd0 -device intel-hda -device hda-duplex,audiodev=snd0 \
 	-qmp "unix:${wd}/qmp.sock,server,nowait" \
+	-chardev "socket,path=${wd}/qga.sock,server=on,wait=off,id=qga0" \
+	-device virtio-serial \
+	-device "virtserialport,chardev=qga0,name=org.qemu.guest_agent.0" \
 	-no-reboot >>"${out}/qemu.log" 2>&1 &
 qemu_pid=$!
 trap 'kill "$qemu_pid" 2>/dev/null || true; wait "$qemu_pid" 2>/dev/null || true; rm -rf "$wd"' EXIT
@@ -119,6 +122,53 @@ for label, command in [
     typ(command); key("ret"); time.sleep(6)
     shot(label)
 PY
+
+# --- The same questions, as text -------------------------------------------
+#
+# Screenshots prove a human could have seen the answer. These assert it. Only
+# test images carry qemu-guest-agent, so this is skipped rather than failed when
+# it is absent — a release image is supposed not to have it.
+
+qga() { python3 tests/lib/qga.py "${wd}/qga.sock" "$@"; }
+
+log "Querying the guest directly"
+if ! qga "true" >/dev/null 2>&1; then
+	warn "no guest agent — rebuild with STRATA_TEST_TOOLS=1 to assert on text"
+else
+	failures=0
+	check() {  # $1 = description, $2 = command, $3 = expected substring
+		local output
+		output="$(qga "$2" 2>&1 || true)"
+		if grep -qF "$3" <<<"$output"; then
+			printf '    \033[32mOK\033[0m   %s\n' "$1"
+		else
+			# shellcheck disable=SC2001  # indenting every line of a multi-line
+			# string is what sed is for; parameter expansion does it worse
+			printf '    \033[31mFAIL\033[0m %s\n      expected %q in:\n%s\n' \
+				"$1" "$3" "$(sed 's/^/        /' <<<"$output")"
+			failures=$((failures + 1))
+		fi
+	}
+
+	check "Secure Boot is enabled"        "mokutil --sb-state"                       "SecureBoot enabled"
+	check "apt tracks forky, not stable"  "grep -v ^# /etc/apt/sources.list"         " forky "
+	check "apt uses the live archive"     "grep -v ^# /etc/apt/sources.list"         "deb.debian.org"
+	check "contrib is enabled"            "grep -v ^# /etc/apt/sources.list"         "contrib"
+	check "no snapshot mirror"            "grep -c snapshot.debian.org /etc/apt/sources.list || true" "0"
+	# NOT `systemctl is-enabled display-manager`: that unit is a symlink to
+	# greetd.service, and systemd reports such units as "alias", never
+	# "enabled". Ask about greetd itself, and about what the symlink points at.
+	check "greetd is running"             "systemctl is-active greetd"                "active"
+	check "greetd owns the display"       "readlink -f /etc/systemd/system/display-manager.service" "greetd.service"
+	check "the portal is running"         "systemctl --user --machine=strata@ is-active xdg-desktop-portal || systemctl --user is-active xdg-desktop-portal" "active"
+	check "live-config was removed"       "dpkg -l live-config 2>&1 || true"         "no packages found"
+
+	if [[ $failures -gt 0 ]]; then
+		printf '\033[1;31m==> %d check(s) failed\033[0m\n' "$failures" >&2
+	else
+		log "All guest checks passed"
+	fi
+fi
 
 log "Shutting the VM down"
 kill "$qemu_pid" 2>/dev/null || true
