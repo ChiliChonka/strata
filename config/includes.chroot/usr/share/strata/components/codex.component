@@ -1,0 +1,7 @@
+SUMMARY="Codex CLI, OpenAI's CLI coding agent"
+CATEGORY="agent"
+ORIGIN="external"
+SOURCE="npm registry (registry.npmjs.org)"
+PACKAGES="nodejs npm"
+NPM_PACKAGE="@openai/codex"
+BINARY="codex"

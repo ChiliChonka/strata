@@ -130,6 +130,13 @@ check "the live user exists"        "getent passwd user"                        
 check "Strata defaults are present" "test -f /etc/strata/hypr/hyprland.lua && echo yes" "yes"
 check "the user config loads them"  "grep dofile /home/user/.config/hypr/hyprland.lua" "/etc/strata/hypr"
 
+# ADR-0011. The base image ships no browser on purpose, so `browser` with
+# nothing installed must explain itself rather than fail obscurely — that
+# message is the only discovery path a new user has.
+check "strata lists components"     "strata list"                                "firefox"
+check "no browser by default"       "ls /usr/share/applications | grep -c -i -e firefox -e chromium || true" "0"
+check "browser explains itself"     "browser 2>&1 || true"                       "strata install firefox"
+
 echo
 if [[ $failures -gt 0 ]]; then
 	die "$failures check(s) failed"

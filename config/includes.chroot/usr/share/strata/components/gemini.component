@@ -1,0 +1,7 @@
+SUMMARY="Gemini CLI, Google's CLI coding agent"
+CATEGORY="agent"
+ORIGIN="external"
+SOURCE="npm registry (registry.npmjs.org)"
+PACKAGES="nodejs npm"
+NPM_PACKAGE="@google/gemini-cli"
+BINARY="gemini"

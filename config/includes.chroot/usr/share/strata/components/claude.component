@@ -1,0 +1,8 @@
+# Claude Code. Not in Debian; published on npm by Anthropic.
+SUMMARY="Claude Code, Anthropic's CLI coding agent"
+CATEGORY="agent"
+ORIGIN="external"
+SOURCE="npm registry (registry.npmjs.org)"
+PACKAGES="nodejs npm"
+NPM_PACKAGE="@anthropic-ai/claude-code"
+BINARY="claude"

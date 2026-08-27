@@ -1,0 +1,5 @@
+SUMMARY="Chromium, the open-source basis of Chrome"
+CATEGORY="browser"
+ORIGIN="debian"
+PACKAGES="chromium"
+DESKTOP="chromium.desktop"

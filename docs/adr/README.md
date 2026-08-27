@@ -14,6 +14,7 @@ Significant architectural decisions are recorded here, one file per decision.
 | [0008](ADR-0008-session-and-greeter.md) | Session management with greetd and tuigreet | Accepted |
 | [0009](ADR-0009-default-package-selection.md) | Default package selection for the minimal desktop | Accepted |
 | [0010](ADR-0010-xwayland-in-the-base-image.md) | XWayland stays in the base image | Accepted |
+| [0011](ADR-0011-optional-components.md) | Optional components and lazy installation | Accepted |
 
 The design phase is complete. No decisions are currently pending.
 

@@ -1,0 +1,7 @@
+SUMMARY="OpenCode, a provider-neutral CLI coding agent"
+CATEGORY="agent"
+ORIGIN="external"
+SOURCE="npm registry (registry.npmjs.org)"
+PACKAGES="nodejs npm"
+NPM_PACKAGE="opencode-ai"
+BINARY="opencode"

@@ -1,0 +1,16 @@
+# Brave. Not in Debian.
+#
+# Brave publishes a third-party APT repository, and that is the route their own
+# documentation gives. Strata does not use it: an APT signing key is trusted for
+# every package name, including replacements for system components, so adding
+# one is a systemwide grant rather than installing an application. Flathub can
+# offer applications and nothing more, which is the weaker and therefore correct
+# permission here. See ADR-0011.
+SUMMARY="Brave, a Chromium-based browser with built-in blocking"
+CATEGORY="browser"
+ORIGIN="flatpak"
+SOURCE="Flathub (flathub.org)"
+PACKAGES="flatpak"
+FLATPAK_REF="com.brave.Browser"
+DESKTOP="com.brave.Browser.desktop"
+NOTE="The first Flatpak application also pulls a runtime, so expect a larger download than the browser alone."

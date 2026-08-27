@@ -1,0 +1,10 @@
+# GitHub Copilot CLI ships as an extension to gh, which IS in Debian — so the
+# Debian part and the external part are unusually clearly separated here.
+SUMMARY="GitHub Copilot CLI, as a gh extension"
+CATEGORY="agent"
+ORIGIN="external"
+SOURCE="GitHub (gh extension install)"
+PACKAGES="gh"
+POST_INSTALL="gh extension install github/gh-copilot"
+BINARY="gh"
+NOTE="Requires 'gh auth login' before first use."
