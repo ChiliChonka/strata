@@ -27,7 +27,13 @@ die() { printf '\033[1;31m==> ERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 
 readonly LOCKFILE="/tmp/strata-qemu-install-test.lock"
 exec 9>"$LOCKFILE"
-flock -n 9 || die "another Strata VM is running (lock: ${LOCKFILE})"
+# Automated runs wait instead of dying. They sit behind a build of a quarter of
+# an hour, unattended, so failing the moment someone happens to have a VM open
+# throws that whole build away for no reason. Interactive scripts keep -n: there
+# a person is watching and wants the answer now, not a silent wait.
+if ! flock -w 900 9; then
+	die "another Strata VM held the lock for 15 minutes (lock: ${LOCKFILE})"
+fi
 
 [[ -f "$TARGET" ]] || die "$TARGET not found — run tests/qemu-install-test.sh first."
 [[ -f "$VARS" ]]   || die "$VARS not found — run tests/qemu-install-test.sh first."

@@ -34,7 +34,7 @@ load_component() {
 	[[ -f "$file" ]] || die "no such component: $name  (try '$PROGRAM list')"
 	SUMMARY=""; CATEGORY=""; ORIGIN=""; SOURCE=""; PACKAGES=""
 	NPM_PACKAGE=""; BINARY=""; DESKTOP=""; NOTE=""; POST_INSTALL=""
-	FLATPAK_REF=""
+	FLATPAK_REF=""; PARTS=""; LAUNCHER=""
 	# Component files are shipped in /usr/share and are ours; they are shell
 	# fragments so that adding one needs no parser.
 	# shellcheck disable=SC1090
@@ -63,9 +63,16 @@ is_installed() {
 }
 
 cmd_list() {
-	local category
-	for category in browser editor agent; do
-		printf '%s%s%s\n' "$c_bold" "${category^}s" "$c_off"
+	local category heading
+	for category in browser editor agent diagnostics; do
+		case "$category" in
+			browser)     heading="Browsers" ;;
+			editor)      heading="Editors" ;;
+			agent)       heading="Coding agents" ;;
+			diagnostics) heading="Diagnostics" ;;
+			*)           heading="$category" ;;
+		esac
+		printf '%s%s%s\n' "$c_bold" "$heading" "$c_off"
 		local name file
 		for file in "$COMPONENT_DIR"/*.component; do
 			[[ -e "$file" ]] || continue
@@ -168,6 +175,41 @@ cmd_install() {
 		eval "$POST_INSTALL"
 	fi
 
+	# Bar parts. A component that has a place in the shell brings it along —
+	# that is what an optional layer is for. The base image installs none, so a
+	# system with nothing installed keeps the bar it always had.
+	if [[ -n "$PARTS" ]]; then
+		sudo mkdir -p /etc/xdg/quickshell/parts
+		local part
+		for part in $PARTS; do
+			if [[ -f "/usr/share/strata/parts/${part}.qml" ]]; then
+				printf '%s==>%s Adding the %s bar element\n' "$c_bold" "$c_off" "$part"
+				sudo ln -sf "/usr/share/strata/parts/${part}.qml" \
+					"/etc/xdg/quickshell/parts/${part}.qml"
+			fi
+		done
+		# The bar rescans this directory on a timer, so it picks the element up
+		# a few seconds from now with no logout and nothing to restart. Touching
+		# the shell to force a reload was tried and measured to do nothing at all.
+	fi
+
+	# Some things have no desktop entry of their own: the coding agents are CLI
+	# tools from npm, and "browser" is a Strata command. Without an entry they
+	# cannot appear in the SUPER+D menu at all. Entries live under
+	# /usr/share/strata/desktop and are linked into the search path on install,
+	# so the menu only ever lists what is actually there.
+	if [[ -n "$LAUNCHER" ]]; then
+		local entry src
+		for entry in $LAUNCHER; do
+			src="/usr/share/strata/desktop/${entry}.desktop"
+			if [[ -f "$src" ]]; then
+				sudo ln -sf "$src" "/usr/share/applications/${entry}.desktop"
+			fi
+		done
+		# Fuzzel reads the directory on each run, so no cache needs rebuilding.
+		printf '%s==>%s Added to the SUPER+D menu\n' "$c_bold" "$c_off"
+	fi
+
 	# A browser is only useful once something knows to open it.
 	if [[ "$CATEGORY" == "browser" && -n "$DESKTOP" ]]; then
 		if ! xdg-settings get default-web-browser >/dev/null 2>&1; then
@@ -181,6 +223,73 @@ cmd_install() {
 	echo
 }
 
+# What an agent on this system would run first, and what a person should paste
+# into a bug report. Text, ordered by how likely it is to matter.
+#
+# sed indents each line of the multi-line outputs; ${var//.../...} cannot do a
+# line-anchored replacement. /etc/os-release is read at runtime, not at lint time.
+# shellcheck disable=SC2001,SC1091
+cmd_doctor() {
+	printf '%s== Strata ==%s\n' "$c_bold" "$c_off"
+	if [[ -r /etc/strata-release ]]; then
+		sed 's/^/  /' /etc/strata-release
+	else
+		printf '  %s\n' "$(. /etc/os-release 2>/dev/null && echo "$PRETTY_NAME")"
+	fi
+	printf '  kernel  %s\n' "$(uname -r)"
+	printf '  booted  %s\n' "$(uptime -p 2>/dev/null || true)"
+	if [[ -d /run/live/medium ]]; then
+		printf '  %srunning from live media%s\n' "$c_yellow" "$c_off"
+	fi
+
+	printf '\n%s== Failed units ==%s\n' "$c_bold" "$c_off"
+	local sys usr
+	sys="$(systemctl --failed --no-legend --plain 2>/dev/null || true)"
+	usr="$(systemctl --user --failed --no-legend --plain 2>/dev/null || true)"
+	if [[ -z "$sys$usr" ]]; then
+		printf '  %snone%s\n' "$c_green" "$c_off"
+	else
+		[[ -n "$sys" ]] && sed 's/^/  system  /' <<<"$sys"
+		[[ -n "$usr" ]] && sed 's/^/  user    /' <<<"$usr"
+	fi
+
+	printf '\n%s== Crashes (24h) ==%s\n' "$c_bold" "$c_off"
+	if ! command -v coredumpctl >/dev/null 2>&1; then
+		printf '  %sno crash capture installed%s — strata install diagnostics\n' "$c_yellow" "$c_off"
+	else
+		local dumps
+		dumps="$(coredumpctl --since -24h --no-pager --no-legend 2>/dev/null || true)"
+		if [[ -z "$dumps" ]]; then
+			printf '  %snone%s\n' "$c_green" "$c_off"
+		else
+			sed 's/^/  /' <<<"$dumps"
+			printf '\n  %sInspect one with:%s coredumpctl info <PID>\n' "$c_dim" "$c_off"
+		fi
+	fi
+
+	printf '\n%s== Errors this boot ==%s\n' "$c_bold" "$c_off"
+	local errors
+	errors="$(journalctl -b -p err --no-pager --quiet 2>/dev/null | tail -25 || true)"
+	if [[ -z "$errors" ]]; then
+		printf '  %snone%s\n' "$c_green" "$c_off"
+	else
+		sed 's/^/  /' <<<"$errors"
+	fi
+
+	printf '\n%s== Session ==%s\n' "$c_bold" "$c_off"
+	local proc
+	for proc in Hyprland quickshell mako hyprpolkitagent hypridle; do
+		if pgrep -x "$proc" >/dev/null 2>&1; then
+			printf '  %-18s %srunning%s\n' "$proc" "$c_green" "$c_off"
+		else
+			printf '  %-18s %snot running%s\n' "$proc" "$c_yellow" "$c_off"
+		fi
+	done
+
+	printf '\n%s== Package source ==%s\n' "$c_bold" "$c_off"
+	grep -vE '^\s*(#|$)' /etc/apt/sources.list 2>/dev/null | sed 's/^/  /' || true
+}
+
 usage() {
 	cat <<USAGE
 ${c_bold}$PROGRAM${c_off} — install optional Strata components
@@ -188,6 +297,7 @@ ${c_bold}$PROGRAM${c_off} — install optional Strata components
   $PROGRAM list              what is available and what is installed
   $PROGRAM info <name>       where a component comes from
   $PROGRAM install <name>    install it
+  $PROGRAM doctor            what is wrong, in a form you can paste
 
 Strata's base image is a complete minimal desktop and nothing more, so browsers,
 editors and agent CLIs are installed on request. See ADR-0011.
@@ -200,6 +310,7 @@ case "${1:-}" in
 	list)          cmd_list ;;
 	info)          [[ $# -eq 2 ]] || die "usage: $PROGRAM info <name>";    cmd_info "$2" ;;
 	install)       [[ $# -eq 2 ]] || die "usage: $PROGRAM install <name>"; cmd_install "$2" ;;
+	doctor)        cmd_doctor ;;
 	-h|--help|"")  usage ;;
 	*)             die "unknown command: $1  (try '$PROGRAM --help')" ;;
 esac

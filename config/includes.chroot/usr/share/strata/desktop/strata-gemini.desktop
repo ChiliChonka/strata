@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Gemini
+Comment=Google's CLI coding agent
+Exec=/usr/lib/strata/hold gemini
+Icon=utilities-terminal
+Terminal=true
+Categories=Development;
+Keywords=agent;ai;cli;

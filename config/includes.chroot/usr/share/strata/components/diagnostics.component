@@ -1,0 +1,16 @@
+# Crash capture and a health indicator.
+#
+# Without systemd-coredump a crashing program leaves nothing behind — no dump,
+# no coredumpctl, nothing to analyse. For a desktop that is arguably fine; for
+# one you are still shaking out, it is the wrong default, and it is the same
+# argument that put hyprland-guiutils in the base image: a system that swallows
+# its own failures is not minimal, it is undiagnosable.
+#
+# It is optional rather than baseline because it does cost disk space over time,
+# and someone running Strata as a finished system may reasonably not want it.
+SUMMARY="Crash capture, plus a bar indicator that appears only when something breaks"
+CATEGORY="diagnostics"
+ORIGIN="debian"
+PACKAGES="systemd-coredump"
+PARTS="health"
+NOTE="The indicator stays invisible while everything is fine. A permanent green tick teaches people to ignore it."

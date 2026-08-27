@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Claude Code
+Comment=Anthropic's CLI coding agent
+Exec=/usr/lib/strata/hold claude
+Icon=utilities-terminal
+Terminal=true
+Categories=Development;
+Keywords=agent;ai;cli;
