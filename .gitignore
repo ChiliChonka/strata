@@ -5,6 +5,8 @@
 # next to the sources. None of it belongs in git.
 # ---------------------------------------------------------------------------
 /.build/
+# live-build's lock file, present while a build runs
+/.lock
 /cache/
 /chroot/
 # chroot.files, chroot.packages.install, chroot.packages.live
@@ -63,7 +65,8 @@
 /tests/**/*.qcow2
 /tests/**/*.fd
 /tests/**/OVMF_VARS*.fd
-/tests/**/screenshots/
+# screenshots/ and screenshots-install/ alike
+/tests/screenshots*/
 
 # ---------------------------------------------------------------------------
 # Editors and OS cruft
