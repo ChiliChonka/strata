@@ -102,6 +102,31 @@ done
 sleep 8
 log "Session is up"
 
+click() {  # $1 = x, $2 = y, $3 = left|right — a real click, through QEMU's
+	# input layer. Hover states and popups cannot be asserted any other way:
+	# nothing in the guest can be asked "is the menu open".
+	python3 - "$wd/qmp.sock" "$1" "$2" "${3:-left}" <<'PYEOF'
+import json, socket, sys
+sock, x, y, button = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
+W, H = 1280, 800
+s = socket.socket(socket.AF_UNIX); s.settimeout(10); s.connect(sock)
+f = s.makefile("rw"); f.readline()
+def send(cmd):
+    f.write(json.dumps(cmd) + "\n"); f.flush()
+    while True:
+        r = json.loads(f.readline())
+        if "return" in r or "error" in r:
+            return r
+send({"execute": "qmp_capabilities"})
+ev = [{"type": "abs", "data": {"axis": "x", "value": x * 32767 // W}},
+      {"type": "abs", "data": {"axis": "y", "value": y * 32767 // H}}]
+send({"execute": "input-send-event", "arguments": {"events": ev}})
+for down in (True, False):
+    send({"execute": "input-send-event", "arguments": {"events": [
+        {"type": "btn", "data": {"down": down, "button": button}}]}})
+PYEOF
+}
+
 screenshot() {  # $1 = output path
 	mkdir -p "$(dirname "$1")"
 	python3 - "$wd/qmp.sock" "$1" <<'PYEOF'
@@ -125,6 +150,23 @@ PYEOF
 if [[ $# -gt 0 ]]; then
 	qga "$*"
 	rc=$?
+	# STRATA_CLICK="x,y[,button]" clicks before the screenshot, so a popup or a
+	# hover state can be photographed rather than assumed.
+	# STRATA_CLICK="x,y[,button];x,y[,button]" — several clicks in order, so a
+	# menu can be opened and something in it picked.
+	if [[ -n "${STRATA_CLICK:-}" ]]; then
+		IFS=';' read -ra clicks <<<"$STRATA_CLICK"
+		for c in "${clicks[@]}"; do
+			IFS=, read -r cx cy cb <<<"$c"
+			click "$cx" "$cy" "${cb:-left}"
+			sleep 2
+		done
+	fi
+	# STRATA_AFTER runs once the clicks have landed — for asserting what an
+	# interaction actually wrote, not just what it drew.
+	if [[ -n "${STRATA_AFTER:-}" ]]; then
+		qga "$STRATA_AFTER"
+	fi
 	shot="${REPO_ROOT}/test-screenshots/adhoc.ppm"
 	if screenshot "$shot"; then
 		log "Screenshot: ${shot}"
@@ -196,7 +238,9 @@ check "hold reports a missing tool" "/usr/lib/strata/hold definitely-not-here </
 # asserting "the file is linked" proves nothing. Drive the real path instead.
 log "Simulating a component that brings a bar element"
 qga "sudo ln -sf /usr/share/strata/parts/agent.qml /etc/xdg/quickshell/parts/agent.qml" >/dev/null
-qga "printf '#!/bin/sh\\necho fake\\n' | sudo tee /usr/local/bin/claude >/dev/null; sudo chmod +x /usr/local/bin/claude" >/dev/null
+# Two agents, not one: the element used to show only the first it found, and a
+# screenshot with a single icon cannot tell the two behaviours apart.
+qga "for a in claude codex; do printf '#!/bin/sh\\necho fake\\n' | sudo tee /usr/local/bin/\$a >/dev/null; sudo chmod +x /usr/local/bin/\$a; done" >/dev/null
 # No reload is provoked here on purpose: the bar has to notice on its own,
 # because that is what happens after a real `strata install`. The wait is longer
 # than the rescan interval.
@@ -210,6 +254,8 @@ check "no part failed to load"      "cat \"\$XDG_RUNTIME_DIR\"/hypr/*/hyprland.l
 # The one that would have caught this: the element has to be drawn, not merely
 # loaded. A binding loop against the Loader parent left it at zero height, which
 # every text check above happily called a pass.
+check "both agents are detected"     "sh -c 'for a in claude codex gemini opencode copilot; do command -v \$a >/dev/null 2>&1 && echo \$a; done' | wc -l" "2"
+check "no selection file yet"       "test -e /home/user/.config/strata/bar-agents-hidden && echo yes || echo no" "no"
 check "the element is on screen"    "cat \"\$XDG_RUNTIME_DIR\"/quickshell/by-id/*/log.qslog 2>/dev/null | grep -ci 'binding loop' || true" "0"
 
 echo
