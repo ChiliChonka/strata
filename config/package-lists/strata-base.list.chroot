@@ -4,12 +4,45 @@
 # Console text editor, so a broken graphical session is still fixable.
 nano
 
+# Administrative access. This must be listed explicitly, not left to arrive as
+# someone else's dependency.
+#
+# Without it sudo is only pulled in by calamares-settings-debian, so after
+# installation `apt-get --purge autoremove` considers it orphaned and tries to
+# remove it. Debian's sudo refuses to be removed while no root password is set,
+# dpkg reports a prerm failure, and the whole installation aborts at the very
+# last step with "Package Manager error ... error code 100".
+#
+# Even setting the installer aside: live-config puts the user in the sudo group,
+# and an installed system with neither sudo nor a root password has no route to
+# administrative privileges at all.
+sudo
+
 # Fetching things over the network from a shell.
 ca-certificates
 curl
 
 # Filesystem tooling for the ext4 default (ADR-0007).
 e2fsprogs
+
+# Required to install Strata, and required for the installed system to boot.
+# None of these is pulled in by calamares, and their absence does not show up
+# until an installation is actually attempted:
+#
+#   dosfstools  provides mkfs.fat. The EFI System Partition must be FAT32 by
+#               UEFI specification, so without it Calamares creates the ESP and
+#               then fails to format it. The error it reports is "failed to
+#               create partition", which points at the wrong step entirely.
+#   efibootmgr  writes the UEFI boot entry for the installed system.
+#   shim-signed and grub-efi-amd64-signed are the Secure Boot chain ADR-0002
+#               requires. live-build puts them on the ISO for the live medium,
+#               but the installed system needs its own copies — an installation
+#               without them produces a system that cannot boot with Secure Boot
+#               enabled, which is the project's core requirement.
+dosfstools
+efibootmgr
+shim-signed
+grub-efi-amd64-signed
 
 # Time synchronisation.
 systemd-timesyncd
