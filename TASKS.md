@@ -112,7 +112,17 @@ every architectural decision needed to begin Phase 2.
 - [x] Test UEFI boot — QEMU with OVMF, `tests/qemu-smoke-test.sh`
 - [x] Test Secure Boot in QEMU with Microsoft keys enrolled — shim and GRUB
       signatures verified with sbverify
-- [ ] Test Secure Boot on real hardware, not only QEMU
+- [x] Test Secure Boot on real hardware, not only QEMU — the live ISO boots
+      from USB on two machines (an AMD desktop and an Intel notebook) with
+      Secure Boot left enabled, and `apt update` reaches forky over https
+      from the live session
+
+Two firmware complaints were observed and are **not** Strata defects. On the
+AMD desktop, `amd_pstate` reports zero frequencies and fails to register with
+`-19` (ENODEV), which points at CPPC being unavailable in firmware. On the
+Intel notebook, ACPI cannot resolve a symbol under `\_SB.PC00.CNVW` — the
+kernel labels it `(bug)` itself, blaming the DSDT. Both would occur on a plain
+Debian Testing install and belong upstream (ADR-0001).
 - [x] Test the live session before installation — boots unattended into a
       Hyprland session via greetd autologin
 - [x] Test installation — Calamares reaches "All done" on GPT with a FAT32 ESP
