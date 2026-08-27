@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Codex
+Comment=OpenAI's CLI coding agent
+Exec=/usr/lib/strata/hold codex
+Icon=utilities-terminal
+Terminal=true
+Categories=Development;
+Keywords=agent;ai;cli;

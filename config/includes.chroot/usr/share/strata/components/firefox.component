@@ -6,3 +6,4 @@ PACKAGES="firefox-esr"
 # Used by `browser --set` to pick the right desktop entry.
 DESKTOP="firefox-esr.desktop"
 NOTE="Debian Testing carries firefox-esr, not the rapid-release firefox."
+LAUNCHER="strata-browser"

@@ -12,12 +12,60 @@
 //
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Io
 import Quickshell.Services.UPower
 import Quickshell.Services.Pipewire
 import QtQuick
 import QtQuick.Layouts
 
 ShellRoot {
+    id: root
+
+    // ---- Drop-in parts -----------------------------------------------------
+    //
+    // The bar grows with what is installed and stays this small when nothing is.
+    // ADR-0003 constrains the *base image*; it does not say Strata may never
+    // show more. Once someone installs a component, that component's bar element
+    // comes with it — which is what "optional layer" was always supposed to
+    // mean.
+    //
+    // A part is a QML file placed in one of these directories. It is loaded into
+    // the bar's right-hand group, and is expected to size itself. Components
+    // install to the system directory; a user's own parts go in their config and
+    // are loaded after, so they can sit alongside.
+    property var partPaths: []
+
+    Process {
+        id: partScan
+        running: true
+        command: ["sh", "-c",
+            "cat /dev/null; " +
+            "for d in /etc/xdg/quickshell/parts \"$HOME\"/.config/quickshell/parts; do " +
+            "  [ -d \"$d\" ] && ls -1 \"$d\"/*.qml 2>/dev/null; " +
+            "done"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const lines = text.split("\n").filter(l => l.trim().length > 0);
+                root.partPaths = lines;
+            }
+        }
+    }
+
+    // Rescan, so that installing a component shows up without logging out.
+    //
+    // This polls rather than watching, which is not free: an `sh` every few
+    // seconds, forever. It buys the thing that matters — `strata install`
+    // finishes and the element is simply there. Quickshell watches the QML
+    // files it loaded, and a new file in a directory it only listed is not one
+    // of them; it was measured not reacting at all to that directory changing,
+    // nor to the shell being touched to provoke a reload.
+    Timer {
+        interval: 3000
+        running: true
+        repeat: true
+        onTriggered: partScan.running = true
+    }
+
     // One bar per monitor. Variants instantiates the delegate for each screen,
     // so plugging in a display gets a bar without restarting the shell.
     Variants {
@@ -88,6 +136,24 @@ ShellRoot {
 
                     // Without a binding the sink's properties are not tracked.
                     PwObjectTracker { objects: [Pipewire.defaultAudioSink] }
+                }
+
+                // ---- Drop-in parts ----------------------------------------
+                //
+                // Each part is loaded on its own. A part that fails to load
+                // leaves an empty slot rather than taking the bar down with it:
+                // a broken optional extra must not cost someone their clock.
+                Repeater {
+                    model: root.partPaths
+                    Loader {
+                        required property string modelData
+                        source: "file://" + modelData
+                        asynchronous: true
+                        onStatusChanged: {
+                            if (status === Loader.Error)
+                                console.warn("bar part failed to load:", modelData);
+                        }
+                    }
                 }
 
                 // ---- Battery ----------------------------------------------

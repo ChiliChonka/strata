@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=OpenCode
+Comment=A provider-neutral CLI coding agent
+Exec=/usr/lib/strata/hold opencode
+Icon=utilities-terminal
+Terminal=true
+Categories=Development;
+Keywords=agent;ai;cli;

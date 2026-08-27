@@ -1,0 +1,30 @@
+#!/bin/sh
+# Run a command in a terminal that was opened just for it, and keep the window
+# open if it fails.
+#
+# Desktop entries with Terminal=true are started as "foot -e <command>". The
+# window closes the moment the command exits, so a program that dies on startup
+# — an agent that has never been authenticated, a binary removed by hand —
+# shows its error for a few milliseconds and then vanishes. The user sees a
+# terminal flash and nothing else, which is indistinguishable from the menu
+# entry being broken.
+#
+# On success this stays out of the way: a clean exit closes the window as usual.
+
+if ! command -v "$1" >/dev/null 2>&1; then
+	printf '\033[1;31m%s is not installed.\033[0m\n\n' "$1"
+	printf 'Install it with:  strata install %s\n\n' "$(basename "$1")"
+	printf 'Press any key to close. '
+	stty raw -echo 2>/dev/null; dd bs=1 count=1 >/dev/null 2>&1; stty sane 2>/dev/null
+	exit 127
+fi
+
+"$@"
+status=$?
+
+if [ "$status" -ne 0 ]; then
+	printf '\n\033[1;31m%s exited with status %d.\033[0m\n' "$1" "$status"
+	printf 'Press any key to close. '
+	stty raw -echo 2>/dev/null; dd bs=1 count=1 >/dev/null 2>&1; stty sane 2>/dev/null
+fi
+exit "$status"

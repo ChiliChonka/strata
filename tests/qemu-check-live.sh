@@ -32,7 +32,13 @@ die()  { printf '\033[1;31m==> ERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 
 readonly LOCKFILE="/tmp/strata-qemu-install-test.lock"
 exec 9>"$LOCKFILE"
-flock -n 9 || die "another Strata VM is running (lock: ${LOCKFILE})"
+# Automated runs wait instead of dying. They sit behind a build of a quarter of
+# an hour, unattended, so failing the moment someone happens to have a VM open
+# throws that whole build away for no reason. Interactive scripts keep -n: there
+# a person is watching and wants the answer now, not a silent wait.
+if ! flock -w 900 9; then
+	die "another Strata VM held the lock for 15 minutes (lock: ${LOCKFILE})"
+fi
 
 shopt -s nullglob
 isos=( strata-*.iso )
@@ -57,6 +63,7 @@ qemu-system-x86_64 \
 	-m 4096 -smp 4 "${accel[@]}" \
 	-vga virtio -display none \
 	-nic user,model=virtio-net-pci \
+	-qmp "unix:${wd}/qmp.sock,server=on,wait=off" \
 	-chardev "socket,path=${wd}/qga.sock,server=on,wait=off,id=qga0" \
 	-device virtio-serial \
 	-device "virtserialport,chardev=qga0,name=org.qemu.guest_agent.0" \
@@ -95,9 +102,34 @@ done
 sleep 8
 log "Session is up"
 
+screenshot() {  # $1 = output path
+	mkdir -p "$(dirname "$1")"
+	python3 - "$wd/qmp.sock" "$1" <<'PYEOF'
+import json, socket, sys
+s = socket.socket(socket.AF_UNIX); s.settimeout(10); s.connect(sys.argv[1])
+f = s.makefile("rw")
+f.readline()
+for c in ({"execute": "qmp_capabilities"}, {"execute": "screendump", "arguments": {"filename": sys.argv[2]}}):
+    f.write(json.dumps(c) + "\n"); f.flush()
+    while True:
+        r = json.loads(f.readline())
+        if "return" in r or "error" in r:
+            break
+sys.exit(1 if "error" in r else 0)
+PYEOF
+}
+
+# Ad-hoc mode: run a command in the guest, then photograph the screen. QML
+# changes can be pushed into a running VM this way and seen in seconds, instead
+# of rebuilding an image for a quarter of an hour to look at one element.
 if [[ $# -gt 0 ]]; then
 	qga "$*"
-	exit $?
+	rc=$?
+	shot="${REPO_ROOT}/test-screenshots/adhoc.ppm"
+	if screenshot "$shot"; then
+		log "Screenshot: ${shot}"
+	fi
+	exit $rc
 fi
 
 failures=0
@@ -137,8 +169,61 @@ check "strata lists components"     "strata list"                               
 check "no browser by default"       "ls /usr/share/applications | grep -c -i -e firefox -e chromium || true" "0"
 check "browser explains itself"     "browser 2>&1 || true"                       "strata install firefox"
 
+# The bar grows with what is installed and stays minimal when nothing is
+# (ADR-0003, ADR-0011). Both halves need asserting: that the drop-in directory
+# exists so components have somewhere to install to, and that nothing has
+# quietly filled it.
+check "strata doctor runs"          "strata doctor 2>&1"                         "Failed units"
+check "doctor sees the session"     "strata doctor 2>&1"                         "Hyprland"
+check "bar parts dir exists"        "test -d /etc/xdg/quickshell/parts && echo yes" "yes"
+check "no bar parts by default"     "ls /etc/xdg/quickshell/parts | wc -l"       "0"
+check "parts are available"         "ls /usr/share/strata/parts"                 "health.qml"
+
+# The SUPER+D menu must list what is installed and nothing else. The fuzzel
+# terminal setting is what makes Terminal=true entries work at all: without it
+# fuzzel falls back to xterm, which is not installed, and picking an agent does
+# nothing at all.
+check "fuzzel launches terminals"   "grep ^terminal= /etc/xdg/fuzzel/fuzzel.ini"  "foot -e"
+check "no agent in menu by default" "ls /usr/share/applications | grep -c ^strata- || true" "0"
+check "launcher entries exist"      "ls /usr/share/strata/desktop"                "strata-claude.desktop"
+check "hold reports a missing tool" "/usr/lib/strata/hold definitely-not-here </dev/null 2>&1 || true" "strata install"
+
+# The regression that made this necessary: installing a component linked the
+# part, but the bar never showed it. Two independent causes — the shell only
+# scanned the directory once at startup, and the part bound its height to its
+# Loader parent, a binding loop Qt resolves by leaving the height at 0. Either
+# one produces an element that installed fine and is nowhere to be seen, so
+# asserting "the file is linked" proves nothing. Drive the real path instead.
+log "Simulating a component that brings a bar element"
+qga "sudo ln -sf /usr/share/strata/parts/agent.qml /etc/xdg/quickshell/parts/agent.qml" >/dev/null
+qga "printf '#!/bin/sh\\necho fake\\n' | sudo tee /usr/local/bin/claude >/dev/null; sudo chmod +x /usr/local/bin/claude" >/dev/null
+# No reload is provoked here on purpose: the bar has to notice on its own,
+# because that is what happens after a real `strata install`. The wait is longer
+# than the rescan interval.
+sleep 10
+
+check "part is linked"              "ls /etc/xdg/quickshell/parts"               "agent.qml"
+check "quickshell survived reload"  "pgrep -c quickshell"                        "1"
+# Quickshell is exec'd by the compositor, so its warnings land in Hyprland's log.
+check "no binding loop in the bar"  "cat \"\$XDG_RUNTIME_DIR\"/hypr/*/hyprland.log 2>/dev/null | grep -ci 'binding loop' || true" "0"
+check "no part failed to load"      "cat \"\$XDG_RUNTIME_DIR\"/hypr/*/hyprland.log 2>/dev/null | grep -ci 'part failed to load' || true" "0"
+# The one that would have caught this: the element has to be drawn, not merely
+# loaded. A binding loop against the Loader parent left it at zero height, which
+# every text check above happily called a pass.
+check "the element is on screen"    "cat \"\$XDG_RUNTIME_DIR\"/quickshell/by-id/*/log.qslog 2>/dev/null | grep -ci 'binding loop' || true" "0"
+
 echo
 if [[ $failures -gt 0 ]]; then
 	die "$failures check(s) failed"
 fi
+# Every check above asserts the absence of an error. None of them can see
+# whether the bar actually drew the element — the defect that started this was
+# invisible to text and obvious in a picture. So end with a picture.
+shot="${REPO_ROOT}/test-screenshots/live-bar.ppm"
+if screenshot "$shot"; then
+	log "Bar screenshot: ${shot}"
+else
+	log "Screenshot failed (checks above still stand)"
+fi
+
 log "All live checks passed"

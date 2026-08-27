@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Copilot CLI
+Comment=GitHub Copilot on the command line
+Exec=/usr/lib/strata/hold gh copilot suggest
+Icon=utilities-terminal
+Terminal=true
+Categories=Development;
+Keywords=agent;ai;cli;
