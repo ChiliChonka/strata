@@ -40,7 +40,26 @@ packages themselves.
 
 Every published image ships a package manifest so the contents can be audited.
 
-## 4. Name and logo
+## 4. Debian's trademarks
+
+Debian is a registered trademark of Software in the Public Interest, Inc. Strata
+is not affiliated with, nor endorsed by, the Debian project.
+
+Strata states factually that it is built on Debian and ships Debian packages —
+which Debian's trademark policy permits without asking. What that policy does
+**not** permit, and what Strata therefore does not do, is use Debian's logos as
+part of its own logo or branding. A Strata mark derived from the Debian swirl
+would be exactly that, however it were restyled.
+
+Note that this is a separate question from copyright. The Debian Open Use Logo
+is released under LGPL-3+ or CC BY-SA 3.0, so modifying it is permitted by its
+licence; that licence grants no trademark rights, and says outright that use
+"does not indicate endorsement by the project".
+
+This is the same principle Strata applies to its own name below, pointed the
+other way.
+
+## 5. Strata's name and logo
 
 The name "Strata" and the Strata logo identify this project.
 

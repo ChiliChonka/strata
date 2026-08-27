@@ -13,5 +13,23 @@ assets under the same terms.
 The Strata name and logo additionally identify this project. See LICENSES.md in
 the repository root for what that means for forks.
 
-Third-party assets, if any are ever added here, must be listed in this file with
-their own license and origin. There are none at present.
+Third-party assets must be listed here with their own license and origin.
+
+
+THIRD-PARTY ASSETS
+
+assets/third-party/debian-openlogo-nd.svg
+    The Debian Open Use Logo (swirl, without the "Debian" wordmark).
+    Copyright (c) 1999 Software in the Public Interest, Inc.
+    Licensed under the GNU Lesser General Public License version 3 or any later
+    version, or, at your option, the Creative Commons Attribution-ShareAlike 3.0
+    Unported License.
+    Source: https://www.debian.org/logos/
+
+    NOT covered by the CC BY-SA 4.0 license above, and not a Strata asset.
+    Used to state truthfully that Strata is built on Debian. Debian's trademark
+    policy forbids using their logos as part of another project's own logo or
+    branding, so it must never be incorporated into a Strata mark, only shown
+    alongside text describing the project.
+    Debian asks that the image link to https://www.debian.org/ where it is used
+    on a web page.

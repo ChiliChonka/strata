@@ -2,6 +2,16 @@
 
 > A minimal Debian Testing desktop built around Hyprland and Quickshell — lightweight, Secure-Boot-friendly, and deliberately close to upstream Debian.
 
+<a href="https://www.debian.org/">
+  <img src="assets/third-party/debian-openlogo-nd.svg" alt="Debian" height="48" align="left" hspace="12">
+</a>
+
+**Built on Debian.** Packages, kernels, security updates and the signed boot
+chain all come from Debian Testing. Strata contributes configuration, not a
+package universe.
+
+<br clear="left">
+
 ## Status
 
 Early project / architecture phase. No image is published yet.
@@ -372,6 +382,15 @@ Debian Testing, and building it from source would require an explicit exception
 to the Debian-first rule.
 
 Login reliability wins over login aesthetics, without exception.
+
+## Trademarks
+
+Debian is a registered trademark of Software in the Public Interest, Inc.
+
+Strata is not affiliated with, nor endorsed by, the Debian project. The Debian
+Open Use Logo is used here under its own license to state truthfully that Strata
+is built on Debian. See [assets/LICENSE](assets/LICENSE) for its terms and
+[www.debian.org/trademark](https://www.debian.org/trademark) for Debian's policy.
 
 ## Why the name Strata?
 
