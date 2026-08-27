@@ -84,6 +84,9 @@ boot_vm() {  # $1 = "install" | "installed"
 		-drive "file=${target},if=virtio,format=qcow2" \
 		-vga virtio -display none \
 		-qmp "unix:${wd}/qmp.sock,server,nowait" \
+		-chardev "socket,path=${wd}/qga.sock,server=on,wait=off,id=qga0" \
+		-device virtio-serial \
+		-device "virtserialport,chardev=qga0,name=org.qemu.guest_agent.0" \
 		-no-reboot >>"${out}/qemu-${1}.log" 2>&1 &
 	# The redirect is not optional. Without it the backgrounded QEMU inherits the
 	# stdout of the command substitution that captures this PID, so the
@@ -158,6 +161,32 @@ def typ(t, delay=0.18):
 INSTALL_MINUTES = int(os.environ.get("INSTALL_MINUTES", "14"))
 PASSWORD = "strataqemu2026"
 USERNAME = "strata"
+# --- Guest agent, when the image has one ------------------------------------
+QGA_SOCK = os.path.join(os.path.dirname(os.environ["QMP"]), "qga.sock")
+sys.path.insert(0, os.path.join(os.getcwd(), "tests", "lib"))
+qga_available = False
+_agent = None
+
+def qga_ready(timeout):
+    global qga_available, _agent
+    try:
+        from qga import GuestAgent
+        _agent = GuestAgent(QGA_SOCK, timeout=10.0)
+    except (ImportError, SystemExit):
+        return False
+    qga_available = _agent.wait_ready(timeout)
+    return qga_available
+
+def guest_running(name):
+    """True if a process by that name exists in the guest."""
+    if not _agent:
+        return False
+    try:
+        code, _, _ = _agent.run(f"pgrep -x {name} >/dev/null")
+        return code == 0
+    except SystemExit:
+        return False
+
 n = [0]
 def shot(label):
     n[0] += 1
@@ -169,8 +198,18 @@ PYLIB
 
 log "Phase 1: install"
 run_phase install "$QMP_LIB"'
+# Poll instead of sleeping a guessed 150 seconds. On a test image the guest
+# agent answers as soon as the system is up, which is both faster and more
+# reliable than a fixed wait — a slow boot no longer means typing into a VM that
+# is not ready. Release images have no agent, so the guess remains the fallback.
 print("  waiting for the live session")
-time.sleep(150); shot("session")
+if qga_ready(120):
+    print("    guest agent answered; giving the session a moment to settle")
+    time.sleep(25)
+else:
+    print("    no guest agent — falling back to a fixed wait")
+    time.sleep(150)
+shot("session")
 print("  launching the installer")
 key("meta_l", "d"); time.sleep(3)
 typ("install"); time.sleep(2); shot("launcher")
@@ -219,10 +258,16 @@ for t_ in (2, 5, 10):
     time.sleep(t_ if t_ == 2 else 3)
     shot(f"after-install-{t_}s")
 
-print("  installing — this takes several minutes")
+# Stop as soon as Calamares exits rather than counting to INSTALL_MINUTES
+# regardless. The fixed loop wasted roughly six minutes of every run: the
+# installation finished around minute eight and the loop kept going to fourteen.
+print("  installing")
 for minute in range(1, INSTALL_MINUTES + 1):
     time.sleep(60)
     shot(f"installing-{minute:02d}min")
+    if qga_available and not guest_running("calamares"):
+        print(f"    Calamares exited after ~{minute} min")
+        break
 
 # Always pull the installer log, success or not. Calamares reports failures in a
 # modal dialog that shows only the failing command, never its output, and the
