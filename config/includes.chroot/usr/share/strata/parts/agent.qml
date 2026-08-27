@@ -11,6 +11,9 @@
 // ~/.config/strata/agent-icons/<name>.svg overrides a mark without touching
 // this file.
 //
+// Colours come from /etc/xdg/quickshell/theme.js. They are repeated here rather
+// than imported: this file is loaded by absolute path from outside the shell's
+// own directory, and a relative import would not resolve. Keep the two in step.
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -24,7 +27,7 @@ Item {
         { name: "claude",   label: "Claude Code", mark: "C", color: "#c96442" },
         { name: "codex",    label: "Codex",       mark: "O", color: "#10a37f" },
         { name: "gemini",   label: "Gemini",      mark: "G", color: "#4285f4" },
-        { name: "opencode", label: "OpenCode",    mark: "K", color: "#7c8fa0" },
+        { name: "opencode", label: "OpenCode",    mark: "K", color: "#7b8792" },
         { name: "copilot",  label: "Copilot",     mark: "P", color: "#8b949e" }
     ]
 
@@ -36,12 +39,12 @@ Item {
 
     visible: present.length > 0
     implicitWidth: visible ? row.implicitWidth : 0
-    implicitHeight: 18
+    implicitHeight: 20
 
     function info(name) {
         for (var i = 0; i < known.length; i++)
             if (known[i].name === name) return known[i];
-        return { name: name, label: name, mark: name.charAt(0).toUpperCase(), color: "#7c8fa0" };
+        return { name: name, label: name, mark: name.charAt(0).toUpperCase(), color: "#7b8792" };
     }
 
     // ---- What is installed -------------------------------------------------
@@ -118,7 +121,7 @@ Item {
                 readonly property var meta: root.info(modelData)
 
                 implicitWidth: 18
-                implicitHeight: 18
+                implicitHeight: 20
                 radius: 4
                 color: hover.containsMouse ? meta.color : Qt.darker(meta.color, 1.6)
                 border.width: 1
@@ -151,15 +154,15 @@ Item {
         Rectangle {
             visible: root.shown.length === 0 && root.present.length > 0
             implicitWidth: 18
-            implicitHeight: 18
+            implicitHeight: 20
             radius: 4
             color: "transparent"
             border.width: 1
-            border.color: "#4a5058"
+            border.color: "#4d5761"
             Text {
                 anchors.centerIn: parent
                 text: "···"
-                color: "#8a9199"
+                color: "#7b8792"
                 font.pixelSize: 11
             }
             MouseArea {
@@ -178,17 +181,17 @@ Item {
         color: "transparent"
         exclusionMode: ExclusionMode.Ignore
         anchors { top: true; right: true }
-        margins { top: 26; right: 8 }
+        margins { top: 34; right: 10 }
         implicitWidth: 190
         implicitHeight: menu.implicitHeight
 
         Rectangle {
             id: menu
             anchors.fill: parent
-            radius: 6
-            color: "#181c20"
+            radius: 10
+            color: "#171c22"
             border.width: 1
-            border.color: "#2c3238"
+            border.color: "#333d48"
             implicitHeight: items.implicitHeight + 12
 
             Column {
@@ -198,7 +201,7 @@ Item {
 
                 Text {
                     text: "Show in bar"
-                    color: "#6a7179"
+                    color: "#4d5761"
                     font.pixelSize: 10
                     padding: 4
                 }
@@ -213,7 +216,7 @@ Item {
                         width: items.width
                         height: 24
                         radius: 4
-                        color: rowHover.containsMouse ? "#22262b" : "transparent"
+                        color: rowHover.containsMouse ? "#28303a" : "transparent"
 
                         Row {
                             anchors { left: parent.left; verticalCenter: parent.verticalCenter; leftMargin: 4 }
@@ -222,9 +225,9 @@ Item {
                             Rectangle {
                                 width: 14; height: 14; radius: 3
                                 anchors.verticalCenter: parent.verticalCenter
-                                color: parent.parent.on ? "#6f7f8f" : "transparent"
+                                color: parent.parent.on ? "#8fb6c9" : "transparent"
                                 border.width: 1
-                                border.color: parent.parent.on ? "#6f7f8f" : "#4a5058"
+                                border.color: parent.parent.on ? "#8fb6c9" : "#4d5761"
                                 Text {
                                     anchors.centerIn: parent
                                     visible: parent.parent.parent.on
@@ -251,7 +254,7 @@ Item {
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: parent.parent.meta.label
-                                color: "#c2c8ce"
+                                color: "#c2cad2"
                                 font.pixelSize: 11
                             }
                         }

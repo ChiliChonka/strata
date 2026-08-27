@@ -45,7 +45,7 @@ Candidate packages confirmed present in Testing, pending selection:
 |---|---|
 | Terminal | **`foot` 1.27.0** · `alacritty`, `kitty` |
 | Launcher | **`fuzzel` 1.12.0** · `wofi`, `rofi` |
-| Notifications | **`mako-notifier` 1.11.0** · `sway-notification-center` |
+| Notifications | ~~`mako-notifier` 1.11.0~~ — served by Quickshell, ADR-0012 |
 | Clipboard | **`wl-clipboard` 2.3.0 + `cliphist` 0.5.0** |
 | Screenshots | **`grim` 1.5.0 + `slurp` 1.5.0** |
 | Lock / idle | **`hyprlock` 0.9.6 + `hypridle` 0.1.8** |
@@ -57,9 +57,11 @@ Candidate packages confirmed present in Testing, pending selection:
 
 Selections in bold are settled by ADR-0008 and ADR-0009.
 
-**Naming trap:** the Debian binary package for the notification daemon is
-`mako-notifier`. The source package `mako` builds `python3-mako`, the Python
-template library — not a notification daemon.
+**Naming trap**, kept because it will come up again if a notification daemon is
+ever needed: the Debian binary package for the daemon is `mako-notifier`. The
+source package `mako` builds `python3-mako`, the Python template library — not a
+notification daemon. Strata no longer installs either; ADR-0012 moved
+notifications into the shell.
 
 Not packaged in Testing, do not plan around them: `regreet`, `hyprshot`,
 `grub-btrfs`, `bcachefs-tools`, `zfsutils-linux`.
@@ -101,6 +103,11 @@ every architectural decision needed to begin Phase 2.
 - [x] Add Quickshell minimal config — `/etc/xdg/quickshell/shell.qml`, one bar
       per monitor with workspaces, clock, volume and battery; a user's
       `~/.config/quickshell/shell.qml` replaces it
+- [x] Give the shell the controls a laptop needs and one palette across the
+      desktop (ADR-0012) — `theme.js` plus `widgets/`, `services/` and
+      `modules/`; network, brightness, sound, notifications, session menu, a
+      hidden dock and an OSD; Hyprland, hyprlock, foot and fuzzel configured to
+      the same colours
 - [x] Configure PipeWire/WirePlumber — no configuration needed. Debian's
       defaults work: an installed system shows both a sink and a source, with
       quickshell and both portals connected as clients.
@@ -181,6 +188,17 @@ Debian Testing install and belong upstream (ADR-0001).
 - [ ] Add project-aware agent skill/instructions
 
 ## Phase 5 — Branding
+
+- [x] Default wallpaper — `scripts/make-wallpaper.py` renders
+      `strata-layers.png` from the standard library alone; `hyprpaper` puts it
+      up and `hyprlock` reuses it
+- [x] Quickshell styling — ADR-0012
+- [x] Lock screen — `/etc/hypr/hyprlock.conf`, with `/usr/lib/strata/lock` so
+      the keybinding, the session menu and hypridle all produce the same one
+- [ ] Logo and wordmark — still the blocker for Calamares branding, below
+- [ ] Greeter branding — deliberately still out of scope (AGENTS.md); login
+      reliability is not traded for appearance
+
 
 Calamares branding is blocked on artwork, not on configuration. A branding
 component needs an `images:` key with `productIcon`, `productLogo` and

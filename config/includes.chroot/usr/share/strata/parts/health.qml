@@ -8,6 +8,9 @@
 // Clicking opens `strata doctor` in a terminal, which is also the command an
 // agent on this system would run first.
 //
+// Colours come from /etc/xdg/quickshell/theme.js. They are repeated here rather
+// than imported: this file is loaded by absolute path from outside the shell's
+// own directory, and a relative import would not resolve. Keep the two in step.
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -25,7 +28,7 @@ Item {
     // comes from this item's implicit size, so reading parent.height here is a
     // binding loop. Qt breaks such a loop by leaving the height at 0, which
     // renders the element invisible even when it loaded correctly.
-    implicitHeight: 18
+    implicitHeight: 20
 
     Process {
         id: probe
@@ -53,15 +56,15 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: 3
-        color: "#5a2d2d"
+        radius: 4
+        color: "#3b2422"
         visible: health.trouble
 
         Text {
             id: label
             anchors.centerIn: parent
-            font.pixelSize: 12
-            color: "#ffd7d7"
+            font.pixelSize: 11
+            color: "#d99188"
             text: {
                 const bits = [];
                 if (health.failedUnits > 0) bits.push(health.failedUnits + " failed");

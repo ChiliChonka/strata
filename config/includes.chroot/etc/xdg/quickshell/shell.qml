@@ -1,30 +1,38 @@
 //
-// Strata's default Quickshell configuration.
+// Strata's Quickshell configuration.
 //
 // Quickshell looks for shell.qml under every XDG config directory, so this file
 // in /etc/xdg is the system default. A user who creates
 // ~/.config/quickshell/shell.qml replaces it entirely — theirs is found first.
 // Nothing in the image edits a user's copy.
 //
-// AGENTS.md limits the MVP shell to useful essentials: workspaces, clock,
-// network, volume, battery. Building a widget suite is explicitly out of scope,
-// so this is a single bar and nothing else.
+// Layout of this configuration:
+//
+//   theme.js    every colour, radius and size, in one place
+//   widgets/    the pieces the modules are built from
+//   services/   what the shell reads from the system, instantiated once
+//   modules/    the bar, its panels, the dock, the toasts and the OSD
+//
+// The desktop this describes is the one ADR-0012 settles on: a bar with the
+// controls a laptop actually needs, a hidden dock, and notifications handled in
+// the shell rather than by a second daemon. It is deliberately not a widget
+// suite — there is no media player, no weather, no system monitor and no
+// wallpaper switcher, and adding one is an argument to have against ADR-0003
+// first.
 //
 import Quickshell
-import Quickshell.Hyprland
 import Quickshell.Io
-import Quickshell.Services.UPower
-import Quickshell.Services.Pipewire
 import QtQuick
-import QtQuick.Layouts
+import "modules"
+import "services"
 
 ShellRoot {
     id: root
 
     // ---- Drop-in parts -----------------------------------------------------
     //
-    // The bar grows with what is installed and stays this small when nothing is.
-    // ADR-0003 constrains the *base image*; it does not say Strata may never
+    // The bar grows with what is installed and stays this small when nothing
+    // is. ADR-0003 constrains the *base image*; it does not say Strata may never
     // show more. Once someone installs a component, that component's bar element
     // comes with it — which is what "optional layer" was always supposed to
     // mean.
@@ -63,112 +71,38 @@ ShellRoot {
         interval: 3000
         running: true
         repeat: true
-        onTriggered: partScan.running = true
+        onTriggered: if (!partScan.running) partScan.running = true
     }
 
-    // One bar per monitor. Variants instantiates the delegate for each screen,
-    // so plugging in a display gets a bar without restarting the shell.
+    // ---- Shared state ------------------------------------------------------
+    // One notification server, one nmcli poll and one backlight probe for the
+    // session, however many monitors are attached.
+    Services { id: svc }
+
+    // ---- Per-monitor surfaces ----------------------------------------------
+    // Variants instantiates the delegate for each screen, so plugging in a
+    // display gets a bar without restarting the shell.
+
     Variants {
         model: Quickshell.screens
-
-        PanelWindow {
-            required property var modelData
-            screen: modelData
-
-            anchors { top: true; left: true; right: true }
-            implicitHeight: 28
-            color: "#16191d"
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 8
-                anchors.rightMargin: 8
-                spacing: 12
-
-                // ---- Workspaces -------------------------------------------
-                RowLayout {
-                    spacing: 4
-                    Repeater {
-                        model: Hyprland.workspaces
-                        Rectangle {
-                            required property var modelData
-                            implicitWidth: 22
-                            implicitHeight: 18
-                            radius: 3
-                            color: modelData.active ? "#6f7f8f" : "#22262b"
-                            Text {
-                                anchors.centerIn: parent
-                                text: modelData.name
-                                color: modelData.active ? "#ffffff" : "#8a9199"
-                                font.pixelSize: 11
-                            }
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: Hyprland.dispatch("workspace " + modelData.id)
-                            }
-                        }
-                    }
-                }
-
-                Item { Layout.fillWidth: true }
-
-                // ---- Clock ------------------------------------------------
-                Text {
-                    text: clock.date.toLocaleString(Qt.locale(), "ddd dd MMM  HH:mm")
-                    color: "#d7dbe0"
-                    font.pixelSize: 12
-                    SystemClock { id: clock; precision: SystemClock.Minutes }
-                }
-
-                Item { Layout.fillWidth: true }
-
-                // ---- Volume -----------------------------------------------
-                Text {
-                    property var sink: Pipewire.defaultAudioSink
-                    color: "#d7dbe0"
-                    font.pixelSize: 12
-                    visible: sink !== null
-                    text: {
-                        if (!sink || !sink.audio) return "";
-                        if (sink.audio.muted) return "vol muted";
-                        return "vol " + Math.round(sink.audio.volume * 100) + "%";
-                    }
-
-                    // Without a binding the sink's properties are not tracked.
-                    PwObjectTracker { objects: [Pipewire.defaultAudioSink] }
-                }
-
-                // ---- Drop-in parts ----------------------------------------
-                //
-                // Each part is loaded on its own. A part that fails to load
-                // leaves an empty slot rather than taking the bar down with it:
-                // a broken optional extra must not cost someone their clock.
-                Repeater {
-                    model: root.partPaths
-                    Loader {
-                        required property string modelData
-                        source: "file://" + modelData
-                        asynchronous: true
-                        onStatusChanged: {
-                            if (status === Loader.Error)
-                                console.warn("bar part failed to load:", modelData);
-                        }
-                    }
-                }
-
-                // ---- Battery ----------------------------------------------
-                // Hidden on machines without one, which includes the QEMU
-                // smoke test and most desktops.
-                Text {
-                    property var battery: UPower.displayDevice
-                    color: "#d7dbe0"
-                    font.pixelSize: 12
-                    visible: battery && battery.isLaptopBattery && battery.isPresent
-                    text: visible
-                        ? "bat " + Math.round(battery.percentage * 100) + "%"
-                        : ""
-                }
-            }
+        delegate: Bar {
+            services: svc
+            partPaths: root.partPaths
         }
+    }
+
+    Variants {
+        model: Quickshell.screens
+        delegate: Dock { services: svc }
+    }
+
+    Variants {
+        model: Quickshell.screens
+        delegate: Toasts { services: svc }
+    }
+
+    Variants {
+        model: Quickshell.screens
+        delegate: Osd { services: svc }
     }
 }

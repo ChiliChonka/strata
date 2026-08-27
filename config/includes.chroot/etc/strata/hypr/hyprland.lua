@@ -7,7 +7,8 @@
 -- Hyprland 0.56 in Debian uses the Lua configuration format. The upstream
 -- example lives at /usr/share/hypr/hyprland.lua and documents far more options
 -- than are set here. Strata deliberately sets few: AGENTS.md asks for a minimal
--- usable default, not a theme.
+-- usable default, so what is set here is the Strata look (ADR-0012) and nothing
+-- that changes how the compositor behaves.
 
 ------------------
 ---- PROGRAMS ----
@@ -31,15 +32,24 @@ hl.on("hyprland.start", function()
     -- own under ~/.config/quickshell/.
     hl.exec_cmd("quickshell")
 
-    -- Notification daemon. The Debian binary is `mako`; the package is
-    -- mako-notifier (the `mako` source package builds python3-mako instead).
-    hl.exec_cmd("mako")
+    -- Notifications are served by the shell itself (ADR-0012). There is
+    -- deliberately no mako here: two processes cannot both own
+    -- org.freedesktop.Notifications, and whichever won the race would decide
+    -- what the desktop looked like.
+
+    -- The wallpaper. hyprpaper reads ~/.config/hypr/hyprpaper.conf when the
+    -- user has one and Strata's otherwise, rather than relying on a fallback
+    -- search path that would silently leave the desktop black if it changed.
+    hl.exec_cmd("sh -c 'test -f \"$HOME\"/.config/hypr/hyprpaper.conf " ..
+                "&& exec hyprpaper || exec hyprpaper -c /etc/hypr/hyprpaper.conf'")
 
     -- Privilege prompts (ADR-0009). Debian ships it in libexec, not bin.
     hl.exec_cmd("/usr/libexec/hyprpolkitagent")
 
-    -- Idle and lock handling.
-    hl.exec_cmd("hypridle")
+    -- Idle and lock handling. Same reasoning as hyprpaper above: without a
+    -- config hypridle starts, registers no listener, and does nothing at all.
+    hl.exec_cmd("sh -c 'test -f \"$HOME\"/.config/hypr/hypridle.conf " ..
+                "&& exec hypridle || exec hypridle -c /etc/hypr/hypridle.conf'")
 
     -- Clipboard history. On Wayland the clipboard is owned by the source
     -- client, so without this, copying and then closing an application loses
@@ -63,14 +73,18 @@ hl.env("QT_QPA_PLATFORM", "wayland;xcb")
 ---- LOOK   ----
 ----------------
 
+-- The colours are Strata's, from /etc/xdg/quickshell/theme.js. Keeping the
+-- window borders and the shell on one palette is the whole of the theme: the
+-- accent marks what is focused, and nothing else is coloured.
 hl.config({
     general = {
-        gaps_in     = 4,
-        gaps_out    = 8,
+        gaps_in     = 5,
+        gaps_out    = 10,
         border_size = 2,
         col = {
-            active_border   = { colors = { "rgba(6f7f8fee)" } },
-            inactive_border = { colors = { "rgba(2a2e33aa)" } },
+            -- accent, fading into the dimmed accent along the border
+            active_border   = { colors = { "rgba(8fb6c9ee)", "rgba(3d515ccc)" } },
+            inactive_border = { colors = { "rgba(212830aa)" } },
         },
         resize_on_border = true,
         layout           = "dwindle",
@@ -79,26 +93,40 @@ hl.config({
 
 hl.config({
     decoration = {
-        rounding = 4,
+        -- Matches the shell's own corner radius.
+        rounding = 8,
         blur = {
             enabled = false, -- costs GPU time for no functional gain
         },
         shadow = {
             enabled = false,
         },
+        -- An unfocused window recedes very slightly. Cheap, and it makes a
+        -- full-screen tiling layout readable at a glance.
+        inactive_opacity = 0.97,
     },
 })
 
+-- AGENTS.md asks for no *excessive* animation, which is not the same as none:
+-- without any, a window appears with no indication of where it came from, and
+-- on a tiling layout that is genuinely disorienting.
+--
+-- Hyprland's own defaults are used rather than a hand-tuned curve. `bezier` and
+-- `animation` are not ordinary keywords — they take positional argument lists —
+-- and the exact Lua spelling of them cannot be checked against the packaged
+-- Hyprland from this repository. A configuration error here costs the session,
+-- and a session is worth more than a tuned easing curve. Tuning them is a
+-- follow-up to be made with Hyprland in front of you.
 hl.config({
     animations = {
-        enabled = false, -- AGENTS.md: avoid excessive theming and animations
+        enabled = true,
     },
 })
 
 hl.config({
     misc = {
-        -- Strata provides its own background later; until then a plain surface
-        -- is more honest than Hyprland's mascot wallpaper.
+        -- hyprpaper puts Strata's own wallpaper up; Hyprland's mascot must not
+        -- appear behind it in the moment before it does.
         force_default_wallpaper = 0,
         disable_hyprland_logo   = true,
     },
@@ -148,8 +176,9 @@ hl.bind(mainMod .. " + F",      hl.dsp.window.float({ action = "toggle" }))
 hl.bind(mainMod .. " + SHIFT + E", hl.dsp.exit())
 
 -- Lock the screen. SHIFT is needed because SUPER+L is the vim-style "focus
--- right" binding below.
-hl.bind(mainMod .. " + SHIFT + L", hl.dsp.exec_cmd("hyprlock"))
+-- right" binding below. The helper picks the right configuration and refuses to
+-- stack a second hyprlock on top of a running one.
+hl.bind(mainMod .. " + SHIFT + L", hl.dsp.exec_cmd("/usr/lib/strata/lock"))
 
 -- Screenshot a selected region to the clipboard (ADR-0009: grim + slurp;
 -- hyprshot is not packaged in Debian).
@@ -191,3 +220,10 @@ hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("wpctl set-volume -l 1 @DEFAULT_
 hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"),      { locked = true, repeating = true })
 hl.bind("XF86AudioMute",        hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"),     { locked = true, repeating = true })
 hl.bind("XF86AudioMicMute",     hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"),   { locked = true, repeating = true })
+
+-- Display brightness. brightnessctl ships the udev rule that makes this work
+-- without privileges; the shell reads the same device back and shows the OSD.
+-- Never all the way to zero: `5%-` stops at 1%, so the screen cannot be turned
+-- off by holding a key.
+hl.bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("brightnessctl -q -c backlight set 5%+"), { locked = true, repeating = true })
+hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl -q -c backlight set 5%-"), { locked = true, repeating = true })

@@ -74,6 +74,10 @@ Avoid legacy PulseAudio-only architecture.
 
 Use NetworkManager unless a strong reason exists to choose otherwise.
 
+The shell reads state from `nmcli` and offers only the two actions a bar is
+expected to have — toggle the radio, join a network. Anything further is
+`nmtui`'s job (ADR-0009, ADR-0012).
+
 ## Session Model
 
 The session layer is chosen for reliability and dependency footprint first.
@@ -99,22 +103,29 @@ must remain debuggable from a TTY without any graphical component running.
 
 ## Quickshell Design
 
-Keep configuration modular.
-
-Suggested modules:
+Keep configuration modular. The layout in `/etc/xdg/quickshell/` is
+(ADR-0012):
 
 ```text
 quickshell/
-├── shell.qml
-├── bar/
-├── workspaces/
-├── audio/
-├── network/
-├── battery/
-└── clock/
+├── shell.qml      the root: services, and one set of surfaces per monitor
+├── theme.js       every colour, radius, size and duration
+├── widgets/       the pieces the modules are built from
+├── services/      what the shell reads from the system, instantiated once
+├── modules/       the bar, its panels, the dock, the toasts and the OSD
+└── parts/         drop-in elements installed by optional components
 ```
 
-The MVP should avoid building a full desktop environment.
+`theme.js` is the single source of the palette, and the Hyprland border
+colours, the lock screen, the terminal and the launcher are configured to the
+same values.
+
+The shell also serves `org.freedesktop.Notifications`; there is no separate
+notification daemon (ADR-0012).
+
+The MVP should avoid building a full desktop environment. The line ADR-0012
+draws is that a control the desktop cannot otherwise reach is in scope, and
+everything else — media players, weather, system monitors — is not.
 
 ## Hyprland Design
 

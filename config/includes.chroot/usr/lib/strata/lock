@@ -1,0 +1,28 @@
+#!/bin/sh
+# Lock the session.
+#
+# Two things this does that a bare `hyprlock` does not:
+#
+#   - It refuses to start a second instance. hyprlock started twice stacks two
+#     lock surfaces, and unlocking one leaves the other, which looks exactly
+#     like a lock screen that will not take the right password.
+#
+#   - It selects the configuration explicitly. hyprlock's own fallback search
+#     path is not something this image should depend on: if it ever changes,
+#     the lock screen silently loses its styling, and worse, a distribution
+#     without a config at all is a black screen with no visible input field.
+#
+# Used by the SUPER+SHIFT+L binding, by the shell's session menu, and by
+# hypridle as its lock_cmd — so all three produce the same lock screen.
+
+if pidof hyprlock >/dev/null 2>&1; then
+	exit 0
+fi
+
+user_conf="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprlock.conf"
+
+if [ -f "$user_conf" ]; then
+	exec hyprlock
+fi
+
+exec hyprlock -c /etc/hypr/hyprlock.conf

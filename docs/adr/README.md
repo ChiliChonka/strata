@@ -15,6 +15,7 @@ Significant architectural decisions are recorded here, one file per decision.
 | [0009](ADR-0009-default-package-selection.md) | Default package selection for the minimal desktop | Accepted |
 | [0010](ADR-0010-xwayland-in-the-base-image.md) | XWayland stays in the base image | Accepted |
 | [0011](ADR-0011-optional-components.md) | Optional components and lazy installation | Accepted |
+| [0012](ADR-0012-shell-theme-and-notifications.md) | A themed shell, and notifications served by Quickshell | Accepted |
 
 The design phase is complete. No decisions are currently pending.
 

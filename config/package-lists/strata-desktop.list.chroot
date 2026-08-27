@@ -41,9 +41,10 @@ xdg-desktop-portal-gtk
 foot
 fuzzel
 
-# Notifications. NOT the package named `mako` — that source package builds
-# python3-mako, a Python template library.
-mako-notifier
+# Notifications are served by Quickshell itself (ADR-0012), so there is no
+# notification daemon in this list. mako-notifier used to be here; two processes
+# cannot both own org.freedesktop.Notifications, and shipping both would have
+# left which one served the desktop up to a startup race.
 
 # Clipboard. cliphist exists because on Wayland the clipboard dies with the
 # source application; copying and then closing the app loses the content.
@@ -53,6 +54,11 @@ cliphist
 # Screenshots
 grim
 slurp
+
+# Display backlight. The shell has no privileged path to /sys/class/backlight,
+# and brightnessctl is the Debian package that ships the udev rule granting the
+# video group write access. 40 KB, no dependencies beyond libc.
+brightnessctl
 
 # Lock, idle, wallpaper
 hyprlock

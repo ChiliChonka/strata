@@ -82,7 +82,7 @@ log "Guest is up"
 # The agent answering is not the same as the session being up, and conflating the
 # two turned this test into a race the moment it got fast: the agent replies
 # around 40 seconds in, while start-hyprland is still running its checks and has
-# not exec'd quickshell or mako yet. Asking then reports them missing, which is
+# not exec'd quickshell or hyprpaper yet. Asking then reports them missing, which is
 # true and useless.
 #
 # The Wayland socket is the honest readiness signal — it exists once the
@@ -196,7 +196,15 @@ check "Secure Boot is enabled"      "mokutil --sb-state"                        
 check "greetd is running"           "systemctl is-active greetd"                 "active"
 check "Hyprland is running"         "pgrep -c Hyprland || pgrep -c hyprland"     "1"
 check "Quickshell is running"       "pgrep -c quickshell"                        "1"
-check "the notification daemon runs" "pgrep -c mako"                             "1"
+# Notifications are served by the shell itself (ADR-0012), so the thing to
+# assert is not that a daemon process exists but that the bus name is actually
+# owned — a Quickshell that started and failed to claim it looks identical from
+# the outside, and every notification on the system would go nowhere.
+check "the shell serves notifications" \
+	"runuser -u user -- env XDG_RUNTIME_DIR=/run/user/1000 busctl --user --acquired --no-pager list 2>/dev/null | grep -c org.freedesktop.Notifications" \
+	"1"
+check "the wallpaper is set"        "pgrep -c hyprpaper"                         "1"
+check "the wallpaper file exists"   "test -f /usr/share/strata/wallpapers/strata-layers.png && echo yes" "yes"
 # -x, not -f: matching the full command line makes pgrep find this very check,
 # which reported 3 processes where there is one.
 check "the polkit agent runs"       "pgrep -cx hyprpolkitagent"                  "1"

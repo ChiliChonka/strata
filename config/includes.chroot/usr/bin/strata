@@ -278,7 +278,7 @@ cmd_doctor() {
 
 	printf '\n%s== Session ==%s\n' "$c_bold" "$c_off"
 	local proc
-	for proc in Hyprland quickshell mako hyprpolkitagent hypridle; do
+	for proc in Hyprland quickshell hyprpaper hyprpolkitagent hypridle; do
 		if pgrep -x "$proc" >/dev/null 2>&1; then
 			printf '  %-18s %srunning%s\n' "$proc" "$c_green" "$c_off"
 		else

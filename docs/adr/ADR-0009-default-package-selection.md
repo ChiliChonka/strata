@@ -147,8 +147,14 @@ usable text.
 - **XWayland.** ~~Not yet decided.~~ **Resolved by ADR-0010: it stays in the base
   image.** ADR-0010 also adds `libqt6waylandclient6` to the package lists
   explicitly.
-- Whether Quickshell should eventually replace `mako-notifier` and
-  `hyprpolkitagent` natively.
+- **Notifications.** ~~Whether Quickshell should eventually replace
+  `mako-notifier`.~~ **Resolved by ADR-0012: it does.** `mako-notifier` is
+  removed from the package list; the shell runs the notification server itself.
+- Whether Quickshell should eventually replace `hyprpolkitagent` natively. Still
+  open, and deliberately not answered by ADR-0012 — an authentication prompt is
+  not a place to experiment.
+- ~~Icon or Nerd fonts.~~ **Resolved by ADR-0012: no.** The shell draws its
+  icons in QML, so no font or icon theme is added to the image.
 
 ## Consequences
 
