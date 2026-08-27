@@ -239,4 +239,38 @@ else
 	log "No serial output — expected, the ISO does not put a console on ttyS0"
 fi
 
+# --- Verdict ---------------------------------------------------------------
+#
+# Collecting screenshots is not a test: a run that boots nothing at all still
+# "succeeds" if all it does is capture pictures. These two things the serial
+# console and the frames can actually prove, so this can gate a release.
+
+failures=0
+
+# 1. The firmware did not reject the boot chain — the ADR-0002 question. OVMF is
+#    unambiguous when it refuses an unsigned or wrongly signed binary.
+if grep -qiE 'security violation|access denied|image failed to load|invalid signature' "$serial" 2>/dev/null; then
+	printf '\033[1;31m==> FAIL:\033[0m firmware rejected the boot chain\n' >&2
+	grep -iE 'security violation|access denied|image failed to load|invalid signature' "$serial" | sed 's/^/      /' >&2
+	failures=$((failures + 1))
+else
+	log "No Secure Boot rejection in the firmware log"
+fi
+
+# 2. The screen changed. An image showing the same frame from five seconds to the
+#    end has not booted, whatever the firmware said about it.
+shopt -s nullglob
+frames=( "$outdir"/t*.ppm )
+if [[ ${#frames[@]} -lt 2 ]]; then
+	printf '\033[1;31m==> FAIL:\033[0m fewer than two frames captured\n' >&2
+	failures=$((failures + 1))
+elif [[ "$(sha256sum < "${frames[0]}")" == "$(sha256sum < "${frames[-1]}")" ]]; then
+	printf '\033[1;31m==> FAIL:\033[0m the screen never changed — the image did not boot\n' >&2
+	printf '      %s and %s are identical\n' "$(basename "${frames[0]}")" "$(basename "${frames[-1]}")" >&2
+	failures=$((failures + 1))
+else
+	log "The screen changed between the first and last frame"
+fi
+
 log "Screenshots in $outdir"
+[[ $failures -eq 0 ]] || die "$failures smoke check(s) failed"

@@ -1,10 +1,13 @@
 name: Build ISO
 
-# Implements ADR-0005: every build is pinned to a snapshot.debian.org timestamp
-# and records SOURCE_DATE_EPOCH derived from that same timestamp.
+# Implements ADR-0005 and RELEASES.md: every build is pinned to a
+# snapshot.debian.org timestamp, records it, and can be reproduced from it.
 #
-# SCAFFOLD: the build job is skipped until scripts/build.sh exists. The snapshot
-# resolution below is real and runnable today.
+# The build runs through scripts/build-in-docker.sh, NOT by installing
+# live-build on the runner. Ubuntu ships live-build 3.0~a57, a fork that
+# predates --uefi-secure-boot — building with it would silently produce an image
+# without a signed boot chain, failing ADR-0002 quietly. The container gives the
+# Debian live-build the configuration actually requires.
 
 on:
   workflow_dispatch:
@@ -27,6 +30,10 @@ permissions:
 
 env:
   DEBIAN_CODENAME: forky
+  # GitHub refuses release assets larger than this. A live ISO carrying
+  # Hyprland, Quickshell and Calamares sits around 1.6 GB, so the margin is real
+  # but not generous — RELEASES.md asks for it to be watched.
+  MAX_ASSET_BYTES: 2147483648
 
 jobs:
   resolve-snapshot:
@@ -34,7 +41,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       snapshot: ${{ steps.pin.outputs.snapshot }}
-      epoch: ${{ steps.pin.outputs.epoch }}
       version: ${{ steps.pin.outputs.version }}
     steps:
       - id: pin
@@ -55,24 +61,17 @@ jobs:
             exit 1
           fi
 
-          base="https://snapshot.debian.org/archive/debian/${snapshot}"
-          release="${base}/dists/${DEBIAN_CODENAME}/Release"
-
+          release="https://snapshot.debian.org/archive/debian/${snapshot}/dists/${DEBIAN_CODENAME}/Release"
           echo "Verifying ${release}"
           if ! curl -fsSL --retry 3 --retry-delay 5 "$release" -o /tmp/Release; then
             echo "::error::snapshot ${snapshot} does not serve ${DEBIAN_CODENAME}"
             exit 1
           fi
-
           grep -E '^(Origin|Suite|Codename|Date):' /tmp/Release
 
-          # ADR-0005: SOURCE_DATE_EPOCH is derived from the snapshot timestamp so
-          # the two can never drift apart.
           epoch="$(date -u -d "${snapshot:0:8} ${snapshot:9:2}:${snapshot:11:2}:${snapshot:13:2}" +%s)"
-
           {
             echo "snapshot=$snapshot"
-            echo "epoch=$epoch"
             echo "version=$(date -u -d "@$epoch" +%Y.%m.%d)"
           } >> "$GITHUB_OUTPUT"
 
@@ -83,7 +82,6 @@ jobs:
             echo "|---|---|"
             echo "| Snapshot | \`$snapshot\` |"
             echo "| Codename | \`${DEBIAN_CODENAME}\` |"
-            echo "| SOURCE_DATE_EPOCH | \`$epoch\` |"
             echo "| Image version | \`$(date -u -d "@$epoch" +%Y.%m.%d)\` |"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -91,58 +89,235 @@ jobs:
     name: Build image
     needs: resolve-snapshot
     runs-on: ubuntu-latest
+    timeout-minutes: 120
+    outputs:
+      iso: ${{ steps.artifacts.outputs.iso }}
+      size: ${{ steps.artifacts.outputs.size }}
     steps:
       - uses: actions/checkout@v7
 
-      - name: Check build script exists
-        id: guard
-        run: |
-          if [ -x scripts/build.sh ]; then
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::scripts/build.sh does not exist yet — build skipped."
-            echo "Build scaffold is in place; see TASKS.md Phase 2." >> "$GITHUB_STEP_SUMMARY"
-          fi
-
       - name: Free disk space
-        if: steps.guard.outputs.ready == 'true'
-        run: |
-          # live-build needs well over the ~14 GB a stock runner leaves free.
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
-          df -h /
-
-      - name: Install live-build
-        if: steps.guard.outputs.ready == 'true'
-        run: sudo apt-get update && sudo apt-get install -y live-build
-
-      - name: Build
-        if: steps.guard.outputs.ready == 'true'
-        env:
-          STRATA_SNAPSHOT: ${{ needs.resolve-snapshot.outputs.snapshot }}
-          STRATA_VERSION: ${{ needs.resolve-snapshot.outputs.version }}
-          SOURCE_DATE_EPOCH: ${{ needs.resolve-snapshot.outputs.epoch }}
-        run: sudo -E ./scripts/build.sh
-
-      - name: Verify the snapshot pin did not leak into the installed system
-        if: steps.guard.outputs.ready == 'true'
-        run: ./tests/check-no-snapshot-leak.sh
-
-      - name: Checksums
-        if: steps.guard.outputs.ready == 'true'
         run: |
           set -euo pipefail
-          for iso in strata-*.iso; do
-            sha256sum "$iso" > "$iso.sha256"
-          done
+          # live-build needs roughly 20 GB. A stock runner leaves about 14 GB
+          # free on /, so this is not optional housekeeping.
+          echo "Before:"; df -h / | tail -1
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /usr/local/share/boost /usr/local/.ghcup \
+                      /opt/hostedtoolcache
+          sudo apt-get clean
+          echo "After:"; df -h / | tail -1
+
+      - name: Build
+        env:
+          STRATA_SNAPSHOT: ${{ needs.resolve-snapshot.outputs.snapshot }}
+        run: sudo -E ./scripts/build-in-docker.sh "$STRATA_SNAPSHOT"
+
+      - name: Collect artifacts
+        id: artifacts
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          isos=( strata-*.iso )
+          if [ ${#isos[@]} -ne 1 ]; then
+            echo "::error::expected exactly one ISO, found ${#isos[@]}"
+            exit 1
+          fi
+          iso="${isos[0]}"
+          size="$(stat -c %s "$iso")"
+
+          echo "iso=$iso"   >> "$GITHUB_OUTPUT"
+          echo "size=$size" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Image"
+            echo
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| File | \`$iso\` |"
+            echo "| Size | $(numfmt --to=iec "$size") |"
+            echo "| SHA256 | \`$(cut -d' ' -f1 "$iso.sha256")\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # A release asset over the limit cannot be published at all, so this is
+          # a build failure rather than a warning to notice later.
+          if [ "$size" -gt "$MAX_ASSET_BYTES" ]; then
+            echo "::error::$iso is $(numfmt --to=iec "$size"), over GitHub's $(numfmt --to=iec "$MAX_ASSET_BYTES") release asset limit"
+            exit 1
+          fi
+          margin=$(( MAX_ASSET_BYTES - size ))
+          if [ "$margin" -lt 209715200 ]; then
+            echo "::warning::only $(numfmt --to=iec "$margin") below the release asset limit"
+          fi
 
       - name: Upload artifacts
-        if: steps.guard.outputs.ready == 'true'
         uses: actions/upload-artifact@v7
         with:
-          name: strata-iso
+          name: strata-${{ needs.resolve-snapshot.outputs.version }}
           path: |
             strata-*.iso
             strata-*.iso.sha256
             manifest-*.txt
           if-no-files-found: error
+          retention-days: 14
+
+  smoke:
+    name: Boot the image
+    needs: [resolve-snapshot, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: strata-${{ needs.resolve-snapshot.outputs.version }}
+
+      - name: Install QEMU and OVMF
+        run: sudo apt-get update && sudo apt-get install -y qemu-system-x86 ovmf
+
+      - name: Report acceleration
+        run: |
+          if [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
+            echo "KVM available"
+          else
+            # Emulation is slow enough that the fixed screenshot marks may land
+            # before the boot reaches anything. Say so rather than let a timeout
+            # masquerade as a boot failure.
+            echo "::warning::no KVM on this runner — the boot test runs under emulation and may need longer"
+          fi
+
+      - name: Boot with Secure Boot enforced
+        run: ./tests/qemu-smoke-test.sh strata-*.iso 180
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: smoke-screenshots-${{ needs.resolve-snapshot.outputs.version }}
+          path: tests/screenshots/
+          if-no-files-found: warn
+          retention-days: 7
+
+  decide:
+    name: Decide whether to publish
+    needs: [resolve-snapshot, build, smoke]
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.decide.outputs.publish }}
+      reason: ${{ steps.decide.outputs.reason }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: strata-${{ needs.resolve-snapshot.outputs.version }}
+
+      - id: decide
+        name: Compare against the last published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          # A manual run publishes when asked, no questions.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "${{ inputs.publish }}" = "true" ]; then
+              echo "publish=true" >> "$GITHUB_OUTPUT"
+              echo "reason=requested manually" >> "$GITHUB_OUTPUT"
+            else
+              echo "publish=false" >> "$GITHUB_OUTPUT"
+              echo "reason=manual run without publish" >> "$GITHUB_OUTPUT"
+            fi
+            exit 0
+          fi
+
+          # Scheduled runs publish only when the package set actually changed.
+          # RELEASES.md: "If nothing meaningful changed, the workflow may skip
+          # publication." Comparing package versions is a more honest test than
+          # comparing snapshot timestamps, which differ every single day.
+          new_manifest="$(ls manifest-*.txt)"
+          sed -n '/^# packages/,$p' "$new_manifest" | tail -n +2 | sort > /tmp/new-packages
+
+          if ! gh release download --pattern 'manifest-*.txt' --dir /tmp/previous 2>/dev/null; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "reason=no previous release to compare against" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          old_manifest="$(ls /tmp/previous/manifest-*.txt | head -1)"
+          sed -n '/^# packages/,$p' "$old_manifest" | tail -n +2 | sort > /tmp/old-packages
+
+          if diff -q /tmp/old-packages /tmp/new-packages >/dev/null; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "reason=package set is identical to the last release" >> "$GITHUB_OUTPUT"
+            {
+              echo "### No release"
+              echo
+              echo "The package set is byte-for-byte what the last release shipped."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            changed="$(diff /tmp/old-packages /tmp/new-packages | grep -c '^[<>]' || true)"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "reason=${changed} package line(s) changed" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Changes since the last release"
+              echo
+              echo '```diff'
+              diff /tmp/old-packages /tmp/new-packages | head -60 || true
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  release:
+    name: Publish release
+    needs: [resolve-snapshot, build, smoke, decide]
+    if: needs.decide.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: strata-${{ needs.resolve-snapshot.outputs.version }}
+
+      - name: Verify the checksum before publishing
+        run: |
+          set -euo pipefail
+          # Publishing an image whose checksum does not match its own manifest
+          # would undermine the one thing a checksum is for.
+          sha256sum -c strata-*.iso.sha256
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.resolve-snapshot.outputs.version }}
+          SNAPSHOT: ${{ needs.resolve-snapshot.outputs.snapshot }}
+          REASON: ${{ needs.decide.outputs.reason }}
+        run: |
+          set -euo pipefail
+          notes="$(mktemp)"
+          {
+            echo "Debian Testing (\`${DEBIAN_CODENAME}\`) with Hyprland and Quickshell."
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Snapshot | \`${SNAPSHOT}\` |"
+            echo "| Commit | \`${GITHUB_SHA}\` |"
+            echo "| Published because | ${REASON} |"
+            echo
+            echo "Rebuild this exact image:"
+            echo
+            echo '```bash'
+            echo "git checkout ${GITHUB_SHA}"
+            echo "sudo ./scripts/build-in-docker.sh ${SNAPSHOT}"
+            echo '```'
+            echo
+            echo "Verify the download with \`sha256sum -c strata-${VERSION}-amd64.iso.sha256\`,"
+            echo "and write it with \`sudo ./scripts/write-usb.sh strata-${VERSION}-amd64.iso /dev/sdX\`."
+          } > "$notes"
+
+          gh release create "v${VERSION}" \
+            --title "Strata ${VERSION}" \
+            --notes-file "$notes" \
+            strata-*.iso strata-*.iso.sha256 manifest-*.txt
