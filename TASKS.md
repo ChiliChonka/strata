@@ -9,8 +9,8 @@ Status legend: `[x]` done · `[ ]` open · `[D]` decided, needs writing up
 - [x] .gitignore covering the live-build working tree
 - [x] `.github/` with CI, build scaffold, issue and PR templates
 - [x] ADRs consolidated under `docs/adr/` with an index
-- [ ] CONTRIBUTING.md
-- [ ] SECURITY.md
+- [x] CONTRIBUTING.md
+- [x] SECURITY.md
 
 ## Phase 1 — Research and Design
 

@@ -334,6 +334,10 @@ does not permit regarding the Strata name.
 
 ## Contributing
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow, the test tiers, and the
+places where something looks wrong on purpose. Security issues go through
+[SECURITY.md](SECURITY.md).
+
 Contributions should preserve:
 
 - minimalism,
