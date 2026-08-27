@@ -136,6 +136,11 @@ hl.config({
 
 hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(terminal))
 hl.bind(mainMod .. " + D",      hl.dsp.exec_cmd(menu))
+
+-- The web browser. Strata installs none by default (ADR-0003), so on a fresh
+-- system this opens a terminal explaining how to get one rather than silently
+-- doing nothing — which is the whole reason the wrapper exists (ADR-0011).
+hl.bind(mainMod .. " + B",      hl.dsp.exec_cmd("sh -c 'browser || " .. terminal .. " -H sh -c \"browser; read -n1\"'"))
 hl.bind(mainMod .. " + Q",      hl.dsp.window.close())
 hl.bind(mainMod .. " + F",      hl.dsp.window.float({ action = "toggle" }))
 

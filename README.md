@@ -187,15 +187,21 @@ The project intends to support lazy installation of tools such as:
 - Gemini CLI
 - GitHub Copilot CLI
 
-A generic provider-neutral interface may later expose commands such as:
+This is implemented. `strata` installs optional components on request, and is
+explicit about where each one comes from:
 
 ```text
-agent install codex
-agent default codex
-agent run
+strata list
+strata install claude
+strata install firefox
 ```
 
-Agents should be downloaded only when the user explicitly chooses them.
+Three origins, deliberately not treated alike: `debian` (apt, from the archive
+the system already trusts), `flatpak` (Flathub, sandboxed) and `external` (not
+in Debian, not sandboxed — stated plainly and confirmed before anything is
+fetched). Agent CLIs are `external`: they come from npm, and that boundary is
+shown rather than smoothed over. See
+[ADR-0011](docs/adr/ADR-0011-optional-components.md).
 
 ## Project-aware agent support
 

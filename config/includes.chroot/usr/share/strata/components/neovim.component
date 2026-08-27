@@ -1,0 +1,4 @@
+SUMMARY="Neovim, a terminal editor"
+CATEGORY="editor"
+ORIGIN="debian"
+PACKAGES="neovim"

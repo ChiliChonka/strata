@@ -170,9 +170,14 @@ Debian Testing install and belong upstream (ADR-0001).
 
 ## Phase 4 — Optional Agent Support
 
-- [ ] Design provider-neutral agent metadata
-- [ ] Implement lazy install helper
-- [ ] Add Codex, Claude Code, OpenCode, Gemini CLI, GitHub Copilot CLI definitions
+- [x] Design provider-neutral agent metadata — declarative component files
+      under `/usr/share/strata/components/`, recording origin rather than
+      hardcoding vendors (ADR-0011)
+- [x] Implement lazy install helper — `strata install`, with three origins
+      (`debian`, `flatpak`, `external`) that are deliberately not treated the
+      same. Also covers browsers and editors, not only agents
+- [x] Add Codex, Claude Code, OpenCode, Gemini CLI, GitHub Copilot CLI
+      definitions — all five, plus firefox, chromium, brave, neovim and kate
 - [ ] Add project-aware agent skill/instructions
 
 ## Phase 5 — Branding

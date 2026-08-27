@@ -1,0 +1,5 @@
+SUMMARY="Kate, a graphical editor from KDE"
+CATEGORY="editor"
+ORIGIN="debian"
+PACKAGES="kate"
+NOTE="Pulls in a substantial part of the KDE frameworks."

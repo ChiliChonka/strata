@@ -1,0 +1,124 @@
+#!/bin/bash
+# Open or choose the default web browser. See ADR-0011.
+#
+# Debian already solves *opening* one: sensible-browser honours $BROWSER and the
+# x-www-browser alternative, and xdg-open handles URLs. None of that is
+# reimplemented here — this delegates.
+#
+# What Debian has no single command for is *choosing*, which is split between
+# `update-alternatives --config x-www-browser` and `xdg-settings set
+# default-web-browser`. --set does both.
+#
+# And when no browser is installed at all — which is the state every fresh Strata
+# system starts in, by ADR-0003 — it says so and names the command that fixes it,
+# rather than failing with something obscure.
+
+set -euo pipefail
+
+readonly PROGRAM="${0##*/}"
+c_bold=$'\033[1m'; c_dim=$'\033[2m'; c_off=$'\033[0m'
+[[ -t 1 ]] || { c_bold=""; c_dim=""; c_off=""; }
+
+die() { printf '%s: %s\n' "$PROGRAM" "$*" >&2; exit 1; }
+
+# Desktop entries of browsers actually present, as xdg-settings names them.
+installed_browsers() {
+	local dir entry name
+	for dir in /usr/share/applications "$HOME/.local/share/applications"; do
+		[[ -d "$dir" ]] || continue
+		for entry in "$dir"/*.desktop; do
+			[[ -e "$entry" ]] || continue
+			grep -q '^Categories=.*WebBrowser' "$entry" 2>/dev/null || continue
+			name="$(basename "$entry")"
+			printf '%s\n' "$name"
+		done
+	done | sort -u
+}
+
+no_browser_help() {
+	printf 'No web browser is installed.\n\n' >&2
+	printf '  Strata ships a minimal desktop, so browsers are installed on\n' >&2
+	printf '  request:\n\n' >&2
+	printf '      %sstrata install firefox%s\n' "$c_bold" "$c_off" >&2
+	printf '      %sstrata install chromium%s\n\n' "$c_bold" "$c_off" >&2
+	printf '  %sstrata list%s shows everything available.\n' "$c_dim" "$c_off" >&2
+	exit 1
+}
+
+cmd_list() {
+	local entries
+	entries="$(installed_browsers)"
+	[[ -n "$entries" ]] || no_browser_help
+
+	local current=""
+	current="$(xdg-settings get default-web-browser 2>/dev/null || true)"
+
+	printf '%sInstalled browsers%s\n' "$c_bold" "$c_off"
+	local entry
+	while read -r entry; do
+		[[ -n "$entry" ]] || continue
+		if [[ "$entry" == "$current" ]]; then
+			printf '  %-32s %sdefault%s\n' "$entry" "$c_bold" "$c_off"
+		else
+			printf '  %s\n' "$entry"
+		fi
+	done <<<"$entries"
+}
+
+cmd_set() {
+	local wanted="$1" entry match=""
+	# Accept either a desktop entry or a bare name: `browser --set firefox`
+	# should work without anyone knowing about .desktop files.
+	while read -r entry; do
+		[[ -n "$entry" ]] || continue
+		if [[ "$entry" == "$wanted" || "$entry" == "$wanted.desktop" || "$entry" == *"$wanted"* ]]; then
+			match="$entry"; break
+		fi
+	done <<<"$(installed_browsers)"
+
+	[[ -n "$match" ]] || {
+		printf '%s: no installed browser matches %q\n\n' "$PROGRAM" "$wanted" >&2
+		cmd_list >&2 || true
+		exit 1
+	}
+
+	xdg-settings set default-web-browser "$match"
+	printf 'Default browser: %s%s%s\n' "$c_bold" "$match" "$c_off"
+
+	# Also point Debian's alternative at it, so sensible-browser and anything
+	# else using x-www-browser agree with xdg-settings rather than contradicting
+	# it. Best effort: it needs root, and not every browser registers one.
+	local exec_line binary
+	exec_line="$(grep -m1 '^Exec=' "/usr/share/applications/$match" 2>/dev/null || true)"
+	binary="$(printf '%s' "${exec_line#Exec=}" | awk '{print $1}')"
+	if [[ -n "$binary" ]] && command -v update-alternatives >/dev/null 2>&1; then
+		if [[ $EUID -eq 0 ]]; then
+			update-alternatives --set x-www-browser "$(command -v "$binary")" 2>/dev/null || true
+		else
+			printf '%sTo make it the system-wide alternative too:%s\n' "$c_dim" "$c_off"
+			printf '  sudo update-alternatives --set x-www-browser %s\n' "$(command -v "$binary" || echo "$binary")"
+		fi
+	fi
+}
+
+case "${1:-}" in
+	--list|-l)  cmd_list ;;
+	--set|-s)   [[ $# -eq 2 ]] || die "usage: $PROGRAM --set <browser>"; cmd_set "$2" ;;
+	--help|-h)
+		cat <<USAGE
+${c_bold}$PROGRAM${c_off} — open or choose the default web browser
+
+  $PROGRAM                open the default browser
+  $PROGRAM <url>          open a URL
+  $PROGRAM --list         installed browsers, marking the default
+  $PROGRAM --set <name>   make one the default
+
+Opening delegates to Debian's sensible-browser, which honours \$BROWSER and the
+x-www-browser alternative. Install a browser with ${c_bold}strata install firefox${c_off}.
+USAGE
+		;;
+	*)
+		[[ -n "$(installed_browsers)" ]] || no_browser_help
+		exec sensible-browser "$@"
+		;;
+esac

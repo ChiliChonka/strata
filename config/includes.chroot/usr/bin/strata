@@ -1,0 +1,205 @@
+#!/bin/bash
+# Install optional Strata components. See ADR-0011.
+#
+# The base image is a complete minimal desktop and nothing more (ADR-0003), so a
+# fresh system has no browser, no editor and no agent CLI. This installs them on
+# request, and is honest about where each one comes from.
+#
+# Two origins, treated differently on purpose:
+#
+#   debian    apt, from the archive the system already trusts.
+#   external  not in Debian. What is being fetched and from where is stated, and
+#             confirmation is required — that is the moment ADR-0001's guarantee
+#             stops applying, and it should not pass unnoticed.
+#
+# Adding a component means adding a file to COMPONENT_DIR. Nothing here needs to
+# change.
+
+set -euo pipefail
+
+readonly COMPONENT_DIR="/usr/share/strata/components"
+readonly PROGRAM="${0##*/}"
+
+c_bold=$'\033[1m'; c_dim=$'\033[2m'; c_green=$'\033[32m'
+c_yellow=$'\033[33m'; c_red=$'\033[31m'; c_off=$'\033[0m'
+if [[ ! -t 1 ]]; then c_bold=""; c_dim=""; c_green=""; c_yellow=""; c_red=""; c_off=""; fi
+
+die() { printf '%s%s: %s%s\n' "$c_red" "$PROGRAM" "$*" "$c_off" >&2; exit 1; }
+
+component_file() { printf '%s/%s.component' "$COMPONENT_DIR" "$1"; }
+
+load_component() {
+	local name="$1" file
+	file="$(component_file "$name")"
+	[[ -f "$file" ]] || die "no such component: $name  (try '$PROGRAM list')"
+	SUMMARY=""; CATEGORY=""; ORIGIN=""; SOURCE=""; PACKAGES=""
+	NPM_PACKAGE=""; BINARY=""; DESKTOP=""; NOTE=""; POST_INSTALL=""
+	FLATPAK_REF=""
+	# Component files are shipped in /usr/share and are ours; they are shell
+	# fragments so that adding one needs no parser.
+	# shellcheck disable=SC1090
+	source "$file"
+}
+
+is_installed() {
+	# A flatpak component is installed when the app is, not when flatpak is —
+	# the Debian package is only the runtime that carries it.
+	if [[ -n "$FLATPAK_REF" ]]; then
+		command -v flatpak >/dev/null 2>&1 || return 1
+		flatpak info "$FLATPAK_REF" >/dev/null 2>&1
+		return $?
+	fi
+	# External components are identified by their binary, since the Debian
+	# packages they depend on say nothing about whether the tool itself is there.
+	if [[ -n "$BINARY" ]]; then
+		command -v "$BINARY" >/dev/null 2>&1 && return 0
+		return 1
+	fi
+	local pkg
+	for pkg in $PACKAGES; do
+		dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "^install ok installed$" || return 1
+	done
+	[[ -n "$PACKAGES" ]]
+}
+
+cmd_list() {
+	local category
+	for category in browser editor agent; do
+		printf '%s%s%s\n' "$c_bold" "${category^}s" "$c_off"
+		local name file
+		for file in "$COMPONENT_DIR"/*.component; do
+			[[ -e "$file" ]] || continue
+			name="$(basename "$file" .component)"
+			load_component "$name"
+			[[ "$CATEGORY" == "$category" ]] || continue
+
+			# Pad the plain text first, then colour it. printf counts the
+			# escape sequences as characters, so colouring before padding
+			# misaligns every column by the length of the colour codes.
+			local mark_text mark_colour origin_colour
+			if is_installed; then mark_text="installed"; mark_colour="$c_green"
+			else mark_text="-"; mark_colour="$c_dim"; fi
+			case "$ORIGIN" in
+				debian)  origin_colour="$c_dim" ;;
+				flatpak) origin_colour="$c_green" ;;
+				*)       origin_colour="$c_yellow" ;;
+			esac
+
+			printf '  %-12s %s%-10s%s %s%-9s%s %s\n' \
+				"$name" \
+				"$mark_colour" "$mark_text" "$c_off" \
+				"$origin_colour" "$ORIGIN" "$c_off" \
+				"$SUMMARY"
+		done
+		echo
+	done
+	printf '%sInstall with:%s %s install <name>\n' "$c_dim" "$c_off" "$PROGRAM"
+	printf '%sAnything else is a normal%s apt install%s — this is Debian.%s\n' \
+		"$c_dim" "$c_bold" "$c_dim" "$c_off"
+}
+
+cmd_info() {
+	load_component "$1"
+	printf '%s%s%s — %s\n\n' "$c_bold" "$1" "$c_off" "$SUMMARY"
+	printf '  category   %s\n' "$CATEGORY"
+	printf '  origin     %s\n' "$ORIGIN"
+	[[ -n "$SOURCE" ]]      && printf '  source     %s\n' "$SOURCE"
+	[[ -n "$PACKAGES" ]]    && printf '  packages   %s  %s(from Debian)%s\n' "$PACKAGES" "$c_dim" "$c_off"
+	[[ -n "$NPM_PACKAGE" ]] && printf '  npm        %s\n' "$NPM_PACKAGE"
+	[[ -n "$FLATPAK_REF" ]] && printf '  flatpak    %s  %s(sandboxed)%s\n' "$FLATPAK_REF" "$c_dim" "$c_off"
+	[[ -n "$POST_INSTALL" ]] && printf '  then runs  %s\n' "$POST_INSTALL"
+	[[ -n "$NOTE" ]]        && printf '\n  %s\n' "$NOTE"
+	echo
+	if is_installed; then printf '  %sInstalled.%s\n' "$c_green" "$c_off"
+	else printf '  Not installed.\n'; fi
+}
+
+cmd_install() {
+	local name="$1"
+	load_component "$name"
+
+	if is_installed; then
+		printf '%s is already installed.\n' "$name"
+		return 0
+	fi
+
+	if [[ "$ORIGIN" == "flatpak" ]]; then
+		printf '\n%s%s comes from Flathub, not Debian.%s\n\n' "$c_green" "$name" "$c_off"
+		printf '  It runs sandboxed and cannot replace Debian packages, which is\n'
+		printf '  why Strata offers this rather than the vendor APT repository.\n\n'
+	fi
+
+	if [[ "$ORIGIN" == "external" ]]; then
+		printf '\n%s%s is not in Debian.%s\n\n' "$c_yellow" "$name" "$c_off"
+		printf '  Debian provides:  %s\n' "${PACKAGES:-nothing}"
+		printf '  Fetched from:     %s%s%s\n' "$c_bold" "$SOURCE" "$c_off"
+		[[ -n "$NPM_PACKAGE" ]]  && printf '  Package:          %s\n' "$NPM_PACKAGE"
+		[[ -n "$POST_INSTALL" ]] && printf '  Command:          %s\n' "$POST_INSTALL"
+		printf '\n  Software from outside Debian is not covered by Debian security\n'
+		printf '  updates, and Strata makes no claim about it.\n\n'
+		read -r -p "  Continue? [y/N] " answer
+		[[ "$answer" =~ ^[Yy]$ ]] || die "aborted"
+		echo
+	fi
+
+	if [[ -n "$PACKAGES" ]]; then
+		printf '%s==>%s Installing from Debian: %s\n' "$c_bold" "$c_off" "$PACKAGES"
+		# shellcheck disable=SC2086  # deliberate word splitting: a package list
+		sudo apt-get install --yes $PACKAGES
+	fi
+
+	if [[ -n "$FLATPAK_REF" ]]; then
+		if ! flatpak remotes --columns=name | grep -qx flathub; then
+			printf '%s==>%s Adding the Flathub remote\n' "$c_bold" "$c_off"
+			sudo flatpak remote-add --if-not-exists flathub \
+				https://dl.flathub.org/repo/flathub.flatpakrepo
+		fi
+		printf '%s==>%s Installing from Flathub: %s\n' "$c_bold" "$c_off" "$FLATPAK_REF"
+		sudo flatpak install --assumeyes flathub "$FLATPAK_REF"
+	fi
+
+	if [[ -n "$NPM_PACKAGE" ]]; then
+		printf '%s==>%s Installing from npm: %s\n' "$c_bold" "$c_off" "$NPM_PACKAGE"
+		sudo npm install --global "$NPM_PACKAGE"
+	fi
+
+	if [[ -n "$POST_INSTALL" ]]; then
+		printf '%s==>%s %s\n' "$c_bold" "$c_off" "$POST_INSTALL"
+		eval "$POST_INSTALL"
+	fi
+
+	# A browser is only useful once something knows to open it.
+	if [[ "$CATEGORY" == "browser" && -n "$DESKTOP" ]]; then
+		if ! xdg-settings get default-web-browser >/dev/null 2>&1; then
+			printf '%s==>%s Making %s the default browser\n' "$c_bold" "$c_off" "$name"
+			browser --set "$name" || true
+		fi
+	fi
+
+	printf '\n%sDone.%s' "$c_green" "$c_off"
+	[[ -n "$NOTE" ]] && printf ' %s' "$NOTE"
+	echo
+}
+
+usage() {
+	cat <<USAGE
+${c_bold}$PROGRAM${c_off} — install optional Strata components
+
+  $PROGRAM list              what is available and what is installed
+  $PROGRAM info <name>       where a component comes from
+  $PROGRAM install <name>    install it
+
+Strata's base image is a complete minimal desktop and nothing more, so browsers,
+editors and agent CLIs are installed on request. See ADR-0011.
+
+Anything not listed here is a normal ${c_bold}apt install${c_off} — this is Debian.
+USAGE
+}
+
+case "${1:-}" in
+	list)          cmd_list ;;
+	info)          [[ $# -eq 2 ]] || die "usage: $PROGRAM info <name>";    cmd_info "$2" ;;
+	install)       [[ $# -eq 2 ]] || die "usage: $PROGRAM install <name>"; cmd_install "$2" ;;
+	-h|--help|"")  usage ;;
+	*)             die "unknown command: $1  (try '$PROGRAM --help')" ;;
+esac
