@@ -1,0 +1,63 @@
+#!/bin/sh
+#
+# Writes the final sources.list for the installed system. Strata's replacement
+# for the helper shipped by calamares-settings-debian.
+#
+# WHY THIS OVERRIDE EXISTS
+#
+# Debian's version hardcodes RELEASE="trixie", because calamares-settings-debian
+# is built for Debian stable. Running it unchanged means every Strata
+# installation ends up tracking stable, not testing — which contradicts the
+# entire premise of the project. It also drops the contrib component and
+# downgrades https to http.
+#
+# The failure is silent and easy to miss: the ADR-0005 regression test checks
+# that no snapshot.debian.org URL reaches the installed system, and a
+# stable-tracking sources.list passes that check perfectly well. It was found by
+# running `grep -v '^#' /etc/apt/sources.list` inside an installed system, not by
+# any test. tests/check-no-snapshot-leak.sh now checks the suite too.
+#
+# The release is read from the target's own /etc/os-release rather than written
+# here as a literal, so it cannot drift when Debian testing moves to its next
+# codename.
+#
+# Suites match what live-build put in the live system: release, -security and
+# -updates. Backports exist for testing but Strata never opted into them, and
+# adding a repository the project did not choose is not this script's business.
+
+set -e
+
+CHROOT=$(mount | grep proc | grep calamares | awk '{print $3}' | sed -e "s#/proc##g")
+
+if [ -z "${CHROOT}" ] || [ ! -d "${CHROOT}" ]; then
+	echo "calamares-sources-final: could not determine the target root" >&2
+	exit 1
+fi
+
+RELEASE=""
+if [ -r "${CHROOT}/etc/os-release" ]; then
+	# shellcheck disable=SC1091  # sourced from the install target at runtime
+	RELEASE=$(. "${CHROOT}/etc/os-release" 2>/dev/null && echo "${VERSION_CODENAME}")
+fi
+
+if [ -z "${RELEASE}" ]; then
+	echo "calamares-sources-final: VERSION_CODENAME missing from the target's" \
+	     "/etc/os-release; refusing to guess a Debian release" >&2
+	exit 1
+fi
+
+COMPONENTS="main contrib non-free-firmware"
+
+cat << SOURCES > "${CHROOT}/etc/apt/sources.list"
+# Strata tracks Debian Testing. See https://wiki.debian.org/SourcesList
+deb https://deb.debian.org/debian ${RELEASE} ${COMPONENTS}
+deb-src https://deb.debian.org/debian ${RELEASE} ${COMPONENTS}
+
+deb https://security.debian.org/debian-security ${RELEASE}-security ${COMPONENTS}
+deb-src https://security.debian.org/debian-security ${RELEASE}-security ${COMPONENTS}
+
+deb https://deb.debian.org/debian ${RELEASE}-updates ${COMPONENTS}
+deb-src https://deb.debian.org/debian ${RELEASE}-updates ${COMPONENTS}
+SOURCES
+
+exit 0

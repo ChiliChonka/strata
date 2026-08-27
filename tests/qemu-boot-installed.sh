@@ -9,6 +9,13 @@
 # Microsoft's keys, and the ISO is NOT attached — this boots the disk alone,
 # which is the whole point.
 #
+# The VM gets a sound card and a network interface on purpose. Without an
+# explicit -audiodev there is no audio hardware at all, which makes "play and
+# record audio" — a Definition of Done item — impossible to test rather than
+# merely broken. hda-duplex provides capture as well as playback. The NIC is
+# QEMU user-mode networking: outbound connections work, ICMP largely does not,
+# so test with curl or apt rather than ping.
+#
 # Credentials come from the install test: strata / strataqemu2026
 #
 # Close the window to shut the VM down. The disk keeps its state, so changes
@@ -46,5 +53,9 @@ exec qemu-system-x86_64 \
 	-drive "file=${TARGET},if=virtio,format=qcow2" \
 	-m 4096 -smp 4 "${accel[@]}" \
 	-vga virtio \
+	-nic user,model=virtio-net-pci \
+	-audiodev pipewire,id=snd0 \
+	-device intel-hda \
+	-device hda-duplex,audiodev=snd0 \
 	-display gtk,show-cursor=on \
 	-name "Strata (installed)"
