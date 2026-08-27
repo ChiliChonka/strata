@@ -35,17 +35,39 @@ readonly OVMF_CODE="/usr/share/OVMF/OVMF_CODE_4M.secboot.fd"
 readonly OVMF_VARS="/usr/share/OVMF/OVMF_VARS_4M.ms.fd"
 [[ -f "$OVMF_CODE" && -f "$OVMF_VARS" ]] || die "OVMF firmware missing. apt install ovmf"
 
+# Refuse to run twice at once. Both runs share this screenshot directory and each
+# clears it at startup, so a second run silently destroys the first one's
+# evidence — and two QEMU instances competing for KVM slows both down. Learned
+# the hard way: a second run was started while the first was still installing,
+# and the interleaved screenshots made the result unreadable.
+readonly LOCKFILE="/tmp/strata-qemu-install-test.lock"
+exec 9>"$LOCKFILE"
+if ! flock -n 9; then
+	die "another qemu-install-test.sh is already running (lock: ${LOCKFILE})"
+fi
+
 out="tests/screenshots-install"
 mkdir -p "$out"; rm -f "$out"/*.ppm "$out"/*.png
 
 # Short path: QEMU rejects unix socket paths over 108 bytes.
 wd="$(mktemp -d /tmp/qiX.XXXX)"
 trap 'rm -rf "$wd"' EXIT
-cp "$OVMF_VARS" "$wd/vars.fd"
+cp "$OVMF_VARS" "$wd/vars.fd"  # scratch copy; the persistent one is set up below
 
-target="$wd/target.qcow2"
-log "Creating a 20G throwaway target disk"
+# Deliberately NOT inside $wd: that directory is removed when the run ends, and
+# an installed system that vanishes the moment it finishes installing cannot be
+# looked at. tests/target.qcow2 is gitignored and survives, so it can be booted
+# interactively afterwards with tests/qemu-boot-installed.sh.
+target="tests/target.qcow2"
+log "Creating a fresh 20G target disk at $target"
+rm -f "$target"
 qemu-img create -f qcow2 "$target" 20G >/dev/null
+
+# The firmware variables hold the UEFI boot entry that the installer writes, so
+# they have to outlive the run too — otherwise the installed system has nothing
+# to boot from next time.
+readonly PERSISTENT_VARS="tests/OVMF_VARS-installed.fd"
+cp "$OVMF_VARS" "$PERSISTENT_VARS"
 
 boot_vm() {  # $1 = "install" | "installed"
 	local -a media=()
@@ -57,7 +79,7 @@ boot_vm() {  # $1 = "install" | "installed"
 		-global driver=cfi.pflash01,property=secure,value=on \
 		-global ICH9-LPC.disable_s3=1 \
 		-drive "if=pflash,format=raw,unit=0,readonly=on,file=${OVMF_CODE}" \
-		-drive "if=pflash,format=raw,unit=1,file=${wd}/vars.fd" \
+		-drive "if=pflash,format=raw,unit=1,file=${PERSISTENT_VARS}" \
 		"${media[@]}" \
 		-drive "file=${target},if=virtio,format=qcow2" \
 		-vga virtio -display none \
@@ -72,7 +94,7 @@ boot_vm() {  # $1 = "install" | "installed"
 run_phase() {  # $1 = phase name, $2 = python driver
 	rm -f "$wd/qmp.sock"
 	local pid; pid="$(boot_vm "$1")"
-	QMP="$wd/qmp.sock" OUT="$out" PHASE="$1" python3 -c "$2" || {
+	QMP="$wd/qmp.sock" OUT="$out" PHASE="$1" INSTALL_MINUTES="${INSTALL_MINUTES:-14}" python3 -c "$2" || {
 		kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true
 		die "phase $1 failed"
 	}
@@ -99,15 +121,43 @@ def cmd(n, **a):
         m = json.loads(line)
         if "event" not in m: return m
 def key(*ks): cmd("send-key", keys=[{"type": "qcode", "data": k} for k in ks])
+# Screen geometry is fixed: Hyprland tiles Calamares to the full 1280x800
+# output, so widget coordinates are stable between runs. QEMU wants absolute
+# axes scaled to 0..32767.
+W, H = 1280, 800
+def click(x, y):
+    cmd("input-send-event", events=[
+        {"type": "abs", "data": {"axis": "x", "value": int(x / W * 32767)}},
+        {"type": "abs", "data": {"axis": "y", "value": int(y / H * 32767)}},
+    ])
+    time.sleep(0.3)
+    cmd("input-send-event", events=[{"type": "btn", "data": {"down": True,  "button": "left"}}])
+    time.sleep(0.1)
+    cmd("input-send-event", events=[{"type": "btn", "data": {"down": False, "button": "left"}}])
+    time.sleep(0.5)
 CH = {c: c for c in "abcdefghijklmnopqrstuvwxyz0123456789"}
-CH.update({" ": "spc", "-": "minus", ".": "dot"})
+# Anything missing here is silently dropped, which turns a path into nonsense
+# without any error: omitting "/" once produced "root.cachecalamaressession.log".
+CH.update({" ": "spc", "-": "minus", ".": "dot", "/": "slash",
+           "_": "shift-minus", ",": "comma", "=": "equal"})
 def typ(t, delay=0.18):
     for c in t:
+        if c == "_":
+            cmd("send-key", keys=[{"type":"qcode","data":"shift"},{"type":"qcode","data":"minus"}])
+            time.sleep(delay); continue
         k = CH.get(c.lower())
-        if k is None: continue
+        if k is None:
+            raise SystemExit(f"typ(): no qcode for {c!r} — add it to CH")
         if c.isupper(): cmd("send-key", keys=[{"type":"qcode","data":"shift"},{"type":"qcode","data":k}])
         else: key(k)
         time.sleep(delay)
+# Throwaway credentials for the test VM. Nothing here is a secret; the disk
+# image is deleted when the run ends.
+# How long to watch the installation. Short values are for diagnosing an early
+# failure; a real install needs the full run.
+INSTALL_MINUTES = int(os.environ.get("INSTALL_MINUTES", "14"))
+PASSWORD = "strataqemu2026"
+USERNAME = "strata"
 n = [0]
 def shot(label):
     n[0] += 1
@@ -131,10 +181,82 @@ time.sleep(90); shot("calamares-welcome")
 # Calamares underlines the accelerator on each button, so Alt+N is Next. Step
 # through and screenshot each page so a change in the wizard is visible rather
 # than silently skipped.
-for page in ("after-welcome", "after-location", "after-keyboard", "after-partitions"):
+for page in ("after-welcome", "after-location", "after-keyboard"):
     key("alt", "n")
     time.sleep(6)
     shot(page)
+
+# The partition page needs a choice before Next becomes usable: with neither
+# "Erase disk" nor "Manual partitioning" selected, the button is disabled and
+# Alt+N does nothing at all.
+print("  selecting Erase disk")
+click(194, 101)
+time.sleep(2); shot("erase-selected")
+key("alt", "n"); time.sleep(8); shot("users-page")
+
+# The Users page. Calamares derives the login name and hostname from the full
+# name, so only three fields need typing. The name field already has focus.
+print("  filling in the user account")
+# A single word so Calamares derives the login name as "strata" rather than
+# stitching initials onto it.
+typ("Strata")
+time.sleep(1); shot("name-typed")
+click(287, 252); typ(PASSWORD)
+click(492, 252); typ(PASSWORD)
+time.sleep(1); shot("users-filled")
+
+print("  summary")
+key("alt", "n"); time.sleep(6); shot("summary")
+
+# On the summary page the button is no longer "Next" but "Install", so the
+# accelerator changes with it.
+# Do NOT send a blind Enter here. On the summary page Enter activates Cancel,
+# which quits Calamares outright — that cost one full run, with ten minutes of
+# screenshots of an empty desktop before anyone noticed.
+print("  starting the installation")
+key("alt", "i")
+for t_ in (2, 5, 10):
+    time.sleep(t_ if t_ == 2 else 3)
+    shot(f"after-install-{t_}s")
+
+print("  installing — this takes several minutes")
+for minute in range(1, INSTALL_MINUTES + 1):
+    time.sleep(60)
+    shot(f"installing-{minute:02d}min")
+
+# Always pull the installer log, success or not. Calamares reports failures in a
+# modal dialog that shows only the failing command, never its output, and the
+# log lives under /root because pkexec runs Calamares as root, not in the home
+# directory of the live user, which is the first place one looks.
+print("  capturing the Calamares log")
+# Dismiss the failure dialog first: it floats over the middle of the screen and
+# hides exactly the log lines worth reading. Calamares quits when it closes,
+# which is fine — the log file stays.
+click(791, 467); time.sleep(3)
+key("meta_l", "ret"); time.sleep(6)
+typ("sudo grep -in -e error -e failed -e cannot /root/.cache/calamares/session.log")
+key("ret"); time.sleep(5); shot("calamares-log-errors")
+typ("clear"); key("ret"); time.sleep(1)
+# The failure message names no cause, so read the region just before it: that is
+# where the partitioning jobs and their output are.
+typ("sudo sed -n 470,530p /root/.cache/calamares/session.log")
+key("ret"); time.sleep(5); shot("calamares-log-before-failure")
 '
+
+# QEMU writes PPM. Convert to PNG so the screenshots can be opened in anything,
+# and so a run leaves something a person can actually look at without extra steps.
+log "Converting screenshots to PNG"
+python3 - "$out" <<'PYCONV' || log "conversion skipped (no Pillow and no ImageMagick)"
+import glob, os, sys
+d = sys.argv[1]
+try:
+    from PIL import Image
+except ImportError:
+    sys.exit(1)
+n = 0
+for f in sorted(glob.glob(os.path.join(d, "*.ppm"))):
+    Image.open(f).save(f[:-4] + ".png"); n += 1
+print(f"    {n} PNG(s)")
+PYCONV
 
 log "Screenshots in $out"

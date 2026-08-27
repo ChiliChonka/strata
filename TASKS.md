@@ -93,14 +93,20 @@ every architectural decision needed to begin Phase 2.
 - [x] Add Quickshell minimal config — `/etc/xdg/quickshell/shell.qml`, one bar
       per monitor with workspaces, clock, volume and battery; a user's
       `~/.config/quickshell/shell.qml` replaces it
-- [ ] Configure PipeWire/WirePlumber
-- [ ] Configure portals
-- [ ] Configure Polkit
+- [x] Configure PipeWire/WirePlumber — no configuration needed. Debian's
+      defaults work: an installed system shows both a sink and a source, with
+      quickshell and both portals connected as clients.
+- [x] Configure portals — no configuration needed. Both services are active and
+      xdg-desktop-portal-hyprland reports `[screencopy] init successful`.
+- [x] Configure Polkit — no configuration beyond starting hyprpolkitagent from
+      the Hyprland config; `pkexec` raises a graphical prompt.
 - [x] Configure session startup and greeter (greetd + tuigreet on vt 7 —
       vt 1 collides with the console and the live autologin getty)
 - [x] Autologin for the live session only, via a live-config component
 - [x] Set the live hostname to `strata` instead of live-config's `debian`
-- [ ] Configure Calamares via `calamares-settings-debian`
+- [x] Configure Calamares via `calamares-settings-debian` — used as shipped,
+      with two overrides: `displaymanager.conf` (the greetd trap, ADR-0008) and
+      `calamares-sources-final`, whose Debian version hardcodes a stable release
 - [x] Produce first ISO — `strata-2026.08.26-amd64.iso`, 1.5 GB, built in 14 min
       from snapshot `20260826T000000Z`, 897 packages
 - [x] Test UEFI boot — QEMU with OVMF, `tests/qemu-smoke-test.sh`
@@ -109,12 +115,15 @@ every architectural decision needed to begin Phase 2.
 - [ ] Test Secure Boot on real hardware, not only QEMU
 - [x] Test the live session before installation — boots unattended into a
       Hyprland session via greetd autologin
-- [ ] Test installation
-- [ ] Test installed boot
+- [x] Test installation — Calamares reaches "All done" on GPT with a FAT32 ESP
+      and an ext4 root (`tests/qemu-install-test.sh`)
+- [x] Test installed boot — boots unaided, `mokutil --sb-state` reports
+      "SecureBoot enabled" (`tests/qemu-verify-installed.sh`)
 - [x] Add regression test that the installed `sources.list` points at the live
       Debian archive (`tests/check-no-snapshot-leak.sh`) — verified against a
       real image and against a planted leak
-- [ ] Test networking, audio, Hyprland, Quickshell
+- [x] Test networking, audio, Hyprland, Quickshell — all verified inside an
+      installed system, not only in the live session
 
 ## Phase 3 — CI and Release
 

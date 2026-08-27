@@ -58,7 +58,7 @@ Config ()
 # Appended at boot by /usr/lib/live/config/2000-strata-greetd-autologin.
 # Live session only. Logging out returns to the greeter.
 [initial_session]
-command = "Hyprland"
+command = "start-hyprland"
 user = "${LIVE_USERNAME:-user}"
 CONFIG
 

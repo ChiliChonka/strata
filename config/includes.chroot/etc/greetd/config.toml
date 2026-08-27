@@ -29,5 +29,11 @@
 vt = 7
 
 [default_session]
-command = "tuigreet --time --remember --remember-session --sessions /usr/share/wayland-sessions --cmd Hyprland"
+# --cmd is start-hyprland, not Hyprland. Debian's hyprland.desktop launches the
+# session as Exec=/usr/bin/start-hyprland, and Hyprland prints "Hyprland was
+# started without start-hyprland. This is strongly discouraged" when that wrapper
+# is bypassed. It is Hyprland's own session entry point and sets up the session
+# environment; skipping it leaves portals, the polkit agent and screen sharing on
+# an incompletely prepared session.
+command = "tuigreet --time --remember --remember-session --sessions /usr/share/wayland-sessions --cmd start-hyprland"
 user = "_greetd"

@@ -7,6 +7,17 @@
 hyprland
 quickshell
 
+# Hyprland's dialog helpers: hyprland-dialog, hyprland-welcome and friends.
+# Hyprland uses them to put errors on screen, and warns at startup when they are
+# missing. Roughly 2.5 MB with libhyprtoolkit5, and hyprland does not even
+# Recommend it, so it has to be listed here.
+#
+# This is a deliberate exception to ADR-0003's minimalism: a system that silently
+# swallows its own error messages is not minimal, it is undiagnosable. Two
+# separate investigations in this project were prolonged by exactly that —
+# Calamares dying with no dialog, and a greeter failing with no visible cause.
+hyprland-guiutils
+
 # ADR-0010: the Qt6 Wayland platform plugin (platforms/libqwayland.so) lives in
 # this package. quickshell already depends on it, but Calamares relies on it too
 # and would fall back to libqxcb.so with no error if that dependency ever
