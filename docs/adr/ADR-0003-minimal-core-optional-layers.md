@@ -2,7 +2,12 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR-0012](ADR-0012-complete-desktop-minimal-applications.md).
+
+The application budget below still holds. What did not hold is the treatment of
+system capability: this record left "minimal" ambiguous between *the system is
+small* and *the desktop can do little*, and listed Bluetooth as an optional
+layer. ADR-0012 separates the two budgets and puts Bluetooth in the base.
 
 ## Context
 
