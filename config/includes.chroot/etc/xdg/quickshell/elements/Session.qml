@@ -26,6 +26,7 @@ Item {
         icon: "power_settings_new"
         tint: menu.open ? Theme.danger : Theme.text
         active: menu.open
+        onHoveredChanged: if (hovered) menu.hoverOpen()
         onClicked: menu.toggle()
     }
 

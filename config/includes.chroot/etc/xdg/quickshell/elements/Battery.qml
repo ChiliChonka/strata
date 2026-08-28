@@ -60,6 +60,7 @@ Item {
         label: batt.present ? Math.round(batt.level * 100) + "%" : ""
         tint: batt.tint()
         active: menu.open
+        onHoveredChanged: if (hovered) menu.hoverOpen()
         onClicked: menu.toggle()
     }
 

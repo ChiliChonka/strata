@@ -80,6 +80,7 @@ Item {
         icon: bright.fraction > 0.6 ? "brightness_7"
             : bright.fraction > 0.3 ? "brightness_6" : "brightness_5"
         active: menu.open
+        onHoveredChanged: if (hovered) menu.hoverOpen()
         onClicked: menu.toggle()
     }
 

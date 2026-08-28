@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The boot menu background.
+
+  live-build renders this with rsvg-convert at 640x480 for isolinux and 800x600
+  for grub, so it is authored at 640x480 and everything is placed relative to
+  that. It is the first thing anyone sees of Strata, and it is deliberately not
+  much: a name, a word about what this is, and the layers the name refers to.
+
+  Colours are the ones in themes/strata-dark.theme. They are repeated here
+  rather than generated, because a bootloader background is drawn long before
+  anything that could read a theme file exists.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480">
+  <rect width="640" height="480" fill="#16191d"/>
+
+  <!-- Strata: layers. Thin, evenly spaced, the top one picked out in the
+       accent so the eye has somewhere to land. -->
+  <g transform="translate(46 96)">
+    <rect x="0" y="0"  width="150" height="7" rx="3.5" fill="#7aa2f7"/>
+    <rect x="0" y="15" width="112" height="7" rx="3.5" fill="#4e5661"/>
+    <rect x="0" y="30" width="132" height="7" rx="3.5" fill="#3a414b"/>
+    <rect x="0" y="45" width="86"  height="7" rx="3.5" fill="#2b313a"/>
+  </g>
+
+  <text x="46" y="216" font-family="Inter Variable, Inter, DejaVu Sans, sans-serif"
+        font-size="64" font-weight="600" fill="#ced4dc" letter-spacing="-1.5">Strata</text>
+
+  <text x="48" y="252" font-family="Inter Variable, Inter, DejaVu Sans, sans-serif"
+        font-size="17" fill="#79818c">Debian Testing · Hyprland · Quickshell</text>
+
+  <rect x="46" y="290" width="60" height="2" fill="#262c35"/>
+
+  <text x="46" y="330" font-family="Inter Variable, Inter, DejaVu Sans, sans-serif"
+        font-size="14" fill="#4e5661">Secure Boot capable · ordinary Debian underneath</text>
+</svg>

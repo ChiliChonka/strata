@@ -35,6 +35,10 @@ installed_browsers() {
 		for entry in "$dir"/*.desktop; do
 			[[ -e "$entry" ]] || continue
 			grep -q '^Categories=.*WebBrowser' "$entry" 2>/dev/null || continue
+			# The category alone is not enough: KDE's bookmark editor claims
+			# WebBrowser and cannot open a URL. Something that actually browses
+			# registers itself as a handler for http.
+			grep -q '^MimeType=.*x-scheme-handler/http' "$entry" 2>/dev/null || continue
 			name="$(basename "$entry")"
 			printf '%s\n' "$name"
 		done
@@ -132,8 +136,10 @@ ${c_bold}$PROGRAM${c_off} — open or choose the default web browser
   $PROGRAM --list         installed browsers, marking the default
   $PROGRAM --set <name>   make one the default
 
-Opening delegates to Debian's sensible-browser, which honours \$BROWSER and the
-x-www-browser alternative. Install a browser with ${c_bold}strata install firefox${c_off}.
+Opening launches the default browser's desktop entry, which is the only thing
+that knows how to start a Flatpak application; without a recorded default it
+falls back to Debian's sensible-browser. Install one with
+${c_bold}strata install firefox${c_off}.
 USAGE
 		;;
 	*)

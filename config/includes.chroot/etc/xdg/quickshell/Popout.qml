@@ -33,5 +33,6 @@ QtObject {
     readonly property bool open: Popouts.current === popout
 
     function toggle() { Popouts.toggle(popout); }
+    function hoverOpen() { Popouts.hover(popout); }
     function close()  { if (open) Popouts.close(); }
 }

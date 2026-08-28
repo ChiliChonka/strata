@@ -190,6 +190,16 @@ check() {  # $1 = description, $2 = command, $3 = expected substring
 
 log "Checking the live system"
 check "hostname is strata"          "cat /etc/hostname"                          "strata"
+
+# The boot menu is the first thing anyone sees. live-build falls back to its own
+# splash if ours is missing, silently, so its absence looks like a design choice
+# rather than a build that dropped a file.
+# Grep the one line that matters, not the file: counting occurrences of "Strata"
+# counted the explanatory comment too, which is the same mistake the snapshot
+# leak test made twice against its own comments.
+check "boot menu is titled Strata"  "grep '^menu title' /run/live/medium/isolinux/menu.cfg"  "Strata"
+check "boot entries are named"      "grep 'menu label' /run/live/medium/isolinux/live.cfg"    "Strata"
+check "our splash was rendered"     "test -s /run/live/medium/isolinux/splash.png && echo yes" "yes"
 check "apt uses the live archive"   "grep -v ^# /etc/apt/sources.list"           "deb.debian.org"
 check "no snapshot mirror"          "grep -c snapshot.debian.org /etc/apt/sources.list || true" "0"
 check "Secure Boot is enabled"      "mokutil --sb-state"                         "SecureBoot enabled"
@@ -210,6 +220,17 @@ check "the user config loads them"  "grep dofile /home/user/.config/hypr/hyprlan
 check "strata lists components"     "strata list"                                "firefox"
 check "no browser by default"       "ls /usr/share/applications | grep -c -i -e firefox -e chromium || true" "0"
 check "browser explains itself"     "browser 2>&1 || true"                       "strata install firefox"
+
+# XDG_DATA_DIRS unset means /usr/local/share:/usr/share, and Flatpak's exports
+# are in neither — an application installed from Flathub is then invisible to
+# xdg-open, to xdg-settings and to the launcher. Brave installed fine and
+# nothing on the system could open it.
+# Asked of quickshell, not of Hyprland. /proc/PID/environ is the environment a
+# process was started with, and Hyprland sets this one later, while reading its
+# config — so the compositor's own environ never shows it however well it works.
+# What matters is what the session's programs inherit, and quickshell is one.
+check "session sees flatpak exports" "tr '\\0' '\\n' < /proc/\$(pgrep -x quickshell)/environ | grep XDG_DATA_DIRS" "/var/lib/flatpak/exports/share"
+check "gio is available to launch"  "command -v gio"                             "/usr/bin/gio"
 
 # The bar grows with what is installed and stays minimal when nothing is
 # (ADR-0003, ADR-0011). Both halves need asserting: that the drop-in directory

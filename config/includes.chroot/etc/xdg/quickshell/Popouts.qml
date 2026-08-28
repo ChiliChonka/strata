@@ -18,6 +18,11 @@ Singleton {
     property var current: null      // the Popout declaration being shown
 
     function toggle(p) { current = (current === p) ? null : p; }
+
+    // Hovering another element switches to it, but only while something is
+    // already open. Otherwise moving the mouse across the bar would open menus
+    // nobody asked for.
+    function hover(p) { if (current !== null && current !== p) current = p; }
     function show(p)   { current = p; }
     function close()   { current = null; }
 }

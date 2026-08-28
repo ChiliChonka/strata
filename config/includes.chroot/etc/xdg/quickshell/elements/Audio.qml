@@ -36,6 +36,7 @@ Item {
         label: audio.av ? Math.round(audio.volume * 100) + "%" : ""
         tint: audio.muted ? Theme.muted : Theme.text
         active: menu.open
+        onHoveredChanged: if (hovered) menu.hoverOpen()
         onClicked: button => {
             // Middle-ground behaviour people expect from a volume icon:
             // left opens the panel, right toggles mute without opening anything.

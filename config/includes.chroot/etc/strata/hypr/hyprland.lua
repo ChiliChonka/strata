@@ -59,6 +59,32 @@ hl.env("HYPRCURSOR_SIZE", "24")
 -- rather than falling back to XCB through XWayland (ADR-0010).
 hl.env("QT_QPA_PLATFORM", "wayland;xcb")
 
+-- Where the desktop looks for .desktop files, icons and MIME defaults.
+--
+-- Unset, the specification says this defaults to /usr/local/share:/usr/share,
+-- and Flatpak's exports are in neither. The consequence is not subtle: an
+-- application installed from Flathub is invisible to xdg-open, to xdg-settings,
+-- and to the SUPER+D launcher — Brave installs successfully and then nothing on
+-- the system can open it, including tools that only ever call xdg-open.
+--
+-- Flatpak ships /etc/profile.d/flatpak.sh to set this, but a Wayland session
+-- started by greetd never sources profile.d, and the file does not exist at all
+-- until something pulls flatpak in. The paths are listed here whether or not
+-- they exist, which costs nothing and means installing a Flatpak application
+-- works in the session that is already running.
+-- Appended one at a time rather than built as a literal: a nil in the middle of
+-- a table constructor leaves a hole, and table.concat over a table with a hole
+-- is undefined.
+local data_dirs = {}
+local home = os.getenv("HOME")
+if home and home ~= "" then
+    data_dirs[#data_dirs + 1] = home .. "/.local/share/flatpak/exports/share"
+end
+data_dirs[#data_dirs + 1] = "/var/lib/flatpak/exports/share"
+data_dirs[#data_dirs + 1] = "/usr/local/share"
+data_dirs[#data_dirs + 1] = "/usr/share"
+hl.env("XDG_DATA_DIRS", table.concat(data_dirs, ":"))
+
 ----------------
 ---- LOOK   ----
 ----------------

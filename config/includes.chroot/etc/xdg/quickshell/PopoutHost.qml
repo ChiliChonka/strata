@@ -50,7 +50,11 @@ PanelWindow {
     anchors { top: true; left: true; right: true }
     margins.top: Theme.barHeight
 
-    implicitHeight: Theme.barHeight * 6
+    // Tall enough for the panel, never shorter. A fixed guess cut the session
+    // menu off at the bottom — and with it the rounded corners, which is how it
+    // was noticed. The extra beyond the panel is the strip that catches a click
+    // meant to dismiss it.
+    implicitHeight: Math.max(Theme.barHeight * 6, panel.height + Theme.gap)
 
     property real reveal: shown ? 1 : 0
     Behavior on reveal {
