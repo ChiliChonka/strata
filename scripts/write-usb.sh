@@ -13,6 +13,12 @@
 #
 # Usage:
 #   sudo ./scripts/write-usb.sh strata-YYYY.MM.DD-amd64.iso /dev/sdX
+#   sudo ./scripts/write-usb.sh --persistent strata-...iso /dev/sdX
+#
+# Without --persistent a live session's writable layer is RAM, so the space on
+# the stick past the image is unreachable and nothing installed survives a
+# reboot. With it, the leftover space becomes a partition live-boot unions over
+# the read-only system.
 
 set -euo pipefail
 
@@ -20,7 +26,20 @@ log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m==> WARNING:\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31m==> ERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 
-[[ $# -eq 2 ]] || die "Usage: sudo $0 <image.iso> /dev/sdX"
+# --persistent adds a second partition covering the space the image leaves
+# unused, so installs in a live session survive a reboot. Without it a 512 GB
+# stick still gives a live session only as much room as it has RAM.
+persistent=0
+args=()
+for a in "$@"; do
+	case "$a" in
+		--persistent) persistent=1 ;;
+		*)            args+=("$a") ;;
+	esac
+done
+set -- "${args[@]}"
+
+[[ $# -eq 2 ]] || die "Usage: sudo $0 [--persistent] <image.iso> /dev/sdX"
 iso="$1"; dev="$2"
 
 [[ $EUID -eq 0 ]] || die "Writing to a block device needs root. Re-run with sudo."
@@ -100,6 +119,53 @@ else
      image:  $iso_sum
      device: $dev_sum
      Do not boot this stick. Try another one, or another port."
+fi
+
+# --- Persistence -----------------------------------------------------------
+#
+# The image is written with dd, so the stick's partition table is the image's:
+# everything past the image is unallocated, and a 512 GB stick carries a 1.6 GB
+# system with nowhere to put anything. Worse, a live session's writable layer is
+# RAM, so installing a browser competes with the browser's own memory.
+#
+# A partition labelled "persistence" holding a persistence.conf that says
+# "/ union" is what live-boot looks for. It is created after the image, in the
+# space the image did not use.
+
+if [[ "$persistent" == "1" ]]; then
+	log "Adding a persistence partition in the remaining space"
+
+	# The image's own table ends somewhere; ask the kernel rather than guess.
+	partprobe "$dev" 2>/dev/null || true
+	sleep 1
+	last_end="$(sfdisk -l -o End "$dev" 2>/dev/null | grep -E '^ *[0-9]+$' | sort -n | tail -1)"
+	[[ -n "$last_end" ]] || die "Could not read the partition table written by the image"
+
+	start=$(( last_end + 1 ))
+	total="$(blockdev --getsz "$dev")"
+	free_mb=$(( (total - start) / 2048 ))
+	[[ "$free_mb" -gt 256 ]] || die "Only ${free_mb} MB left after the image — too little to be useful"
+
+	log "Creating a ${free_mb} MB persistence partition"
+	sfdisk --append --no-reread --force "$dev" <<-EOF
+		${start},,L
+	EOF
+	partprobe "$dev" 2>/dev/null || true
+	sleep 2
+
+	newpart="$(lsblk -lno PATH "$dev" | tail -1)"
+	[[ -b "$newpart" ]] || die "The new partition did not appear as a device"
+
+	mkfs.ext4 -q -L persistence "$newpart" || die "Could not format $newpart"
+
+	mnt="$(mktemp -d)"
+	mount "$newpart" "$mnt" || die "Could not mount the new partition"
+	printf '/ union\n' > "${mnt}/persistence.conf"
+	sync
+	umount "$mnt"
+	rmdir "$mnt"
+
+	log "Persistence ready: ${free_mb} MB that survives a reboot"
 fi
 
 log "Done. Eject with: udisksctl power-off -b $dev"

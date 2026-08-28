@@ -227,12 +227,28 @@ check "parts are available"         "ls /usr/share/strata/parts"                
 # because Theme.qml cannot resolve Colors.qml.
 check "theme was applied at build"  "readlink /etc/strata/theme/active.theme"    "strata-dark"
 check "quickshell colours exist"    "test -f /etc/xdg/quickshell/Colors.qml && echo yes" "yes"
-check "foot include resolves"       "foot --check-config 2>&1 && echo valid"     "valid"
+# `foot --check-config` returns success on a deprecation warning, so asserting
+# its exit status passed while every terminal launch printed a wall of them.
+# Assert on the output instead: a correct configuration prints nothing at all.
+check "foot config is silent"       "out=\$(foot --check-config 2>&1); [ -z \"\$out\" ] && echo silent || echo \"\$out\"" "silent"
+check "foot uses current sections"  "grep -c '^\\[colors-' /etc/strata/theme/foot.ini" "2"
 check "foot has scheme colours"     "grep ^background= /etc/strata/theme/foot.ini" "16191d"
 check "hyprland border colours"     "grep active /etc/strata/theme/colors.lua"   "rgba("
 check "both themes are listed"      "strata theme list | wc -l"                  "2"
 check "the ui font is installed"    "fc-list : family | grep -c 'Inter Variable'" "1"
 check "the icon font is installed"  "fc-list : family | grep -c 'Material Icons'" "1"
+
+# ADR-0012's surface list. These are wired into shell.qml by name rather than
+# scanned, so one of them failing to load takes the whole bar with it — which is
+# the intent, but it makes a check for QML errors load-bearing rather than nice
+# to have.
+check "bar elements are present"    "ls /etc/xdg/quickshell/elements | wc -l"    "5"
+check "no QML errors in the shell"  "cat \"\$XDG_RUNTIME_DIR\"/hypr/*/hyprland.log 2>/dev/null | grep -ci 'ERROR.*\\.qml' || true" "0"
+check "the bar still has a clock"   "pgrep -cx quickshell"                       "1"
+# Lock is the one session action that silently does nothing if its binary is
+# missing; the rest are systemctl, which is not going anywhere.
+check "lock screen is installed"    "command -v hyprlock"                        "/usr/bin/hyprlock"
+check "wifi tooling for handoff"    "command -v nmtui"                           "/usr/bin/nmtui"
 
 # The SUPER+D menu must list what is installed and nothing else. The fuzzel
 # terminal setting is what makes Terminal=true entries work at all: without it

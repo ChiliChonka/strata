@@ -18,6 +18,7 @@ import Quickshell.Services.Pipewire
 import QtQuick
 import QtQuick.Layouts
 import "root:/"
+import "root:/elements" as Elements
 
 ShellRoot {
     id: root
@@ -125,22 +126,15 @@ ShellRoot {
 
                 Item { Layout.fillWidth: true }
 
-                // ---- Volume -----------------------------------------------
-                Text {
-                    property var sink: Pipewire.defaultAudioSink
-                    color: Theme.text
-                    font.family: Theme.fontUi
-                    font.pixelSize: 12
-                    visible: sink !== null
-                    text: {
-                        if (!sink || !sink.audio) return "";
-                        if (sink.audio.muted) return "vol muted";
-                        return "vol " + Math.round(sink.audio.volume * 100) + "%";
-                    }
-
-                    // Without a binding the sink's properties are not tracked.
-                    PwObjectTracker { objects: [Pipewire.defaultAudioSink] }
-                }
+                // ---- The desktop's own controls ---------------------------
+                //
+                // ADR-0012's surface list, one file each under elements/. They
+                // are named here rather than scanned: these are the desktop, not
+                // optional extras, and a missing one should be a loud error.
+                Elements.Brightness {}
+                Elements.Audio {}
+                Elements.Battery {}
+                Elements.Network {}
 
                 // ---- Drop-in parts ----------------------------------------
                 //
@@ -160,19 +154,8 @@ ShellRoot {
                     }
                 }
 
-                // ---- Battery ----------------------------------------------
-                // Hidden on machines without one, which includes the QEMU
-                // smoke test and most desktops.
-                Text {
-                    property var battery: UPower.displayDevice
-                    color: Theme.text
-                    font.family: Theme.fontUi
-                    font.pixelSize: 12
-                    visible: battery && battery.isLaptopBattery && battery.isPresent
-                    text: visible
-                        ? "bat " + Math.round(battery.percentage * 100) + "%"
-                        : ""
-                }
+                Elements.Session {}
+
             }
         }
     }
