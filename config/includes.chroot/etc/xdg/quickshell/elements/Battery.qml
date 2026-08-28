@@ -60,17 +60,17 @@ Item {
         label: batt.present ? Math.round(batt.level * 100) + "%" : ""
         tint: batt.tint()
         active: menu.open
-        onClicked: menu.open = !menu.open
+        onClicked: menu.toggle()
     }
 
     Popout {
         id: menu
+        anchor: pill
         contentWidth: 220
-        contentHeight: col.implicitHeight + Theme.pad * 2
 
         Column {
             id: col
-            anchors { fill: parent; margins: Theme.pad }
+            width: parent.width
             spacing: 3
 
             Text {

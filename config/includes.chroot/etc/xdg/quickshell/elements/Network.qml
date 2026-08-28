@@ -66,17 +66,17 @@ Item {
             : net.wifiOn ? "signal_wifi_0_bar" : "wifi_off"
         tint: (net.wired || net.activeWifi) ? Theme.text : Theme.muted
         active: menu.open
-        onClicked: menu.open = !menu.open
+        onClicked: menu.toggle()
     }
 
     Popout {
         id: menu
+        anchor: pill
         contentWidth: 250
-        contentHeight: content.implicitHeight + Theme.pad * 2
 
         Column {
             id: content
-            anchors { fill: parent; margins: Theme.pad }
+            width: parent.width
             spacing: 3
 
             Text {
@@ -125,7 +125,7 @@ Item {
                         // element deliberately does not have.
                         if (modelData.known) modelData.connectWithSettings();
                         else Quickshell.execDetached(["foot", "nmtui-connect", modelData.name]);
-                        menu.open = false;
+                        menu.close();
                     }
                 }
             }
@@ -139,7 +139,7 @@ Item {
             MenuRow {
                 icon: "tune"
                 text_: "Network settings"
-                onActivated: { menu.open = false; Quickshell.execDetached(["foot", "nmtui"]); }
+                onActivated: { menu.close(); Quickshell.execDetached(["foot", "nmtui"]); }
             }
         }
     }

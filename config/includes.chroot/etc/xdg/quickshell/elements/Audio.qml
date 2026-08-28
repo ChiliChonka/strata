@@ -40,18 +40,18 @@ Item {
             // Middle-ground behaviour people expect from a volume icon:
             // left opens the panel, right toggles mute without opening anything.
             if (button === Qt.RightButton && audio.av) audio.av.muted = !audio.av.muted;
-            else menu.open = !menu.open;
+            else menu.toggle();
         }
     }
 
     Popout {
         id: menu
+        anchor: pill
         contentWidth: 230
-        contentHeight: content.implicitHeight + Theme.pad * 2
 
         Column {
             id: content
-            anchors { fill: parent; margins: Theme.pad }
+            width: parent.width
             spacing: 8
 
             Text {

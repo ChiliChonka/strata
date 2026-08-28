@@ -5,9 +5,17 @@
 // with an external monitor has nothing here to control, and an inert slider is
 // worse than no slider.
 //
-// brightnessctl is not in the base image yet; until it is, this writes through
-// the sysfs interface the kernel already exposes. That needs the user to be in
-// the `video` group, which udev grants on a normal Debian install.
+// Setting it goes through logind, not through sysfs.
+//
+// /sys/class/backlight/*/brightness is root-owned and mode 644, and nothing in
+// Debian's udev rules changes that — writing to it as the session user is
+// denied, and a Process that fails reports nothing, so the slider moved and the
+// screen did not. Measured, not assumed.
+//
+// logind exposes SetBrightness for the active session on the seat, which is
+// exactly the permission model wanted here, and busctl is part of systemd. The
+// alternative was brightnessctl: another package and a udev rule, for something
+// the system already does.
 //
 import Quickshell
 import Quickshell.Io
@@ -57,7 +65,12 @@ Item {
     function apply(f) {
         const v = Math.max(1, Math.round(f * bright.maximum));
         bright.current = v;
+        // The sysfs write is kept as a fallback for a system where the file is
+        // group-writable; on a stock install only the logind call succeeds.
         setter.command = ["sh", "-c",
+            "busctl call org.freedesktop.login1 /org/freedesktop/login1/session/self " +
+            "org.freedesktop.login1.Session SetBrightness ssu backlight " +
+            bright.device + " " + v + " 2>/dev/null || " +
             "printf '%s' " + v + " > /sys/class/backlight/" + bright.device + "/brightness"];
         setter.running = true;
     }
@@ -67,17 +80,17 @@ Item {
         icon: bright.fraction > 0.6 ? "brightness_7"
             : bright.fraction > 0.3 ? "brightness_6" : "brightness_5"
         active: menu.open
-        onClicked: menu.open = !menu.open
+        onClicked: menu.toggle()
     }
 
     Popout {
         id: menu
+        anchor: pill
         contentWidth: 220
-        contentHeight: col.implicitHeight + Theme.pad * 2
 
         Column {
             id: col
-            anchors { fill: parent; margins: Theme.pad }
+            width: parent.width
             spacing: 8
 
             Text {

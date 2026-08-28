@@ -73,9 +73,18 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
 
-        PanelWindow {
+        // Variants takes exactly one delegate, and modelData belongs to it, so
+        // the bar and its popout window are grouped rather than listed side by
+        // side. Scope is Quickshell's non-visual container for precisely this.
+        Scope {
+            // Addressed by id, not by `parent`: a window has no visual parent,
+            // so the delegate's screen has to be reachable by name.
+            id: perScreen
             required property var modelData
-            screen: modelData
+
+        PanelWindow {
+            id: bar
+            screen: perScreen.modelData
 
             anchors { top: true; left: true; right: true }
             implicitHeight: Theme.barHeight
@@ -157,6 +166,15 @@ ShellRoot {
                 Elements.Session {}
 
             }
+        }
+
+        // Drawn next to the bar rather than inside it: a layer-shell surface
+        // cannot escape its own window, and the panel has to hang below.
+        PopoutHost {
+            screen: perScreen.modelData
+            barWindow: bar
+        }
+
         }
     }
 }

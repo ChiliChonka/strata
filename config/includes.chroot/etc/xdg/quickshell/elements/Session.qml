@@ -26,29 +26,29 @@ Item {
         icon: "power_settings_new"
         tint: menu.open ? Theme.danger : Theme.text
         active: menu.open
-        onClicked: menu.open = !menu.open
+        onClicked: menu.toggle()
     }
 
     Popout {
         id: menu
+        anchor: pill
         contentWidth: 190
-        contentHeight: content.implicitHeight + Theme.pad * 2
 
         Column {
             id: content
-            anchors { fill: parent; margins: Theme.pad }
+            width: parent.width
             spacing: 2
 
             MenuRow {
                 icon: "lock"
                 text_: "Lock"
-                onActivated: { menu.open = false; Quickshell.execDetached(["hyprlock"]); }
+                onActivated: { menu.close(); Quickshell.execDetached(["hyprlock"]); }
             }
             MenuRow {
                 icon: "bedtime"
                 text_: "Suspend"
                 onActivated: {
-                    menu.open = false;
+                    menu.close();
                     // Locked first, so the screen does not come back unlocked.
                     Quickshell.execDetached(["sh", "-c", "hyprlock & sleep 1; systemctl suspend"]);
                 }
@@ -56,7 +56,7 @@ Item {
             MenuRow {
                 icon: "logout"
                 text_: "Log out"
-                onActivated: { menu.open = false; Hyprland.dispatch("exit"); }
+                onActivated: { menu.close(); Hyprland.dispatch("exit"); }
             }
 
             Rectangle {
@@ -68,13 +68,13 @@ Item {
                 icon: "restart_alt"
                 text_: "Restart"
                 tint: Theme.warn
-                onActivated: { menu.open = false; Quickshell.execDetached(["systemctl", "reboot"]); }
+                onActivated: { menu.close(); Quickshell.execDetached(["systemctl", "reboot"]); }
             }
             MenuRow {
                 icon: "power_settings_new"
                 text_: "Shut down"
                 tint: Theme.danger
-                onActivated: { menu.open = false; Quickshell.execDetached(["systemctl", "poweroff"]); }
+                onActivated: { menu.close(); Quickshell.execDetached(["systemctl", "poweroff"]); }
             }
         }
     }
