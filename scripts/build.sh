@@ -113,7 +113,9 @@ log "Re-checking the snapshot pin against the built image"
 log "Checking the live boot parameters"
 for cfg in binary/boot/grub/grub.cfg binary/isolinux/live.cfg; do
 	[[ -f "$cfg" ]] || die "expected bootloader config missing: $cfg"
-	grep -q 'boot=live[^\n]*persistence' "$cfg" \
+	# `.` and not a bracket expression: inside brackets, \n is the literal
+	# letter n, and "components" contains one — it could never match.
+	grep -q 'boot=live.*persistence' "$cfg" \
 		|| die "$cfg has no persistence in its live boot line — check auto/config, and check that no '#' comment was added inside the lb config call"
 done
 
