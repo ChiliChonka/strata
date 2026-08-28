@@ -153,10 +153,33 @@ if [[ "$persistent" == "1" ]]; then
 	partprobe "$dev" 2>/dev/null || true
 	sleep 2
 
-	newpart="$(lsblk -lno PATH "$dev" | tail -1)"
-	[[ -b "$newpart" ]] || die "The new partition did not appear as a device"
+	# Identified by the sector it starts at, not by being last in a listing.
+	# Two destructive commands run on whatever this resolves to, and "the last
+	# line of lsblk" is an assumption about output order, not a fact about which
+	# partition was just created.
+	newpart=""
+	while read -r path pstart; do
+		[[ "$pstart" == "$start" ]] && { newpart="$path"; break; }
+	done < <(lsblk -lno PATH,START "$dev" 2>/dev/null | tail -n +2)
 
-	mkfs.ext4 -q -L persistence "$newpart" || die "Could not format $newpart"
+	[[ -n "$newpart" && -b "$newpart" ]] \
+		|| die "Could not identify the partition created at sector ${start}"
+
+	# Belt and braces: never touch something that is mounted or is the image.
+	if findmnt -no TARGET "$newpart" >/dev/null 2>&1; then
+		die "$newpart is mounted — refusing to format it"
+	fi
+
+	# -F, and wipefs first: writing the image destroyed the partition table but
+	# not the bytes, so a stick prepared once before still has a filesystem at
+	# exactly this offset. Without this mkfs stops on an interactive prompt in
+	# the middle of a script that is otherwise unattended.
+	#
+	# Overwriting is the right answer anyway: the old layer holds changes made
+	# against the previous image, and a union of those over a new one shadows
+	# the very files that were just updated.
+	wipefs -a "$newpart" >/dev/null 2>&1 || true
+	mkfs.ext4 -q -F -L persistence "$newpart" || die "Could not format $newpart"
 
 	mnt="$(mktemp -d)"
 	mount "$newpart" "$mnt" || die "Could not mount the new partition"
