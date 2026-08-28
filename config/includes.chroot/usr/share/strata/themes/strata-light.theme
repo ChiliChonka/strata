@@ -1,0 +1,21 @@
+# Strata Light — the same scheme inverted, for bright rooms and projectors.
+NAME="Strata Light"
+VARIANT="light"
+
+base00=f7f8fa
+base01=eceef2
+base02=dde1e8
+base03=a8b0bb
+base04=5f6874
+base05=2d333c
+base06=1b2027
+base07=0e1216
+
+base08=b04b4b
+base09=9c6533
+base0A=8a6a10
+base0B=41784b
+base0C=2e7379
+base0D=2f62c4
+base0E=7a4a99
+base0F=6d4a3c

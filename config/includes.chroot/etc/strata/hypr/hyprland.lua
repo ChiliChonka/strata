@@ -33,7 +33,7 @@ hl.on("hyprland.start", function()
 
     -- Notification daemon. The Debian binary is `mako`; the package is
     -- mako-notifier (the `mako` source package builds python3-mako instead).
-    hl.exec_cmd("mako")
+    hl.exec_cmd("mako -c /etc/strata/theme/mako.conf")
 
     -- Privilege prompts (ADR-0009). Debian ships it in libexec, not bin.
     hl.exec_cmd("/usr/libexec/hyprpolkitagent")
@@ -63,14 +63,23 @@ hl.env("QT_QPA_PLATFORM", "wayland;xcb")
 ---- LOOK   ----
 ----------------
 
+-- Window borders follow the active colour scheme, the same one the bar, the
+-- launcher, notifications and the terminal use. `strata theme set <name>`
+-- rewrites this file's source; nothing here needs editing to change colour.
+-- The fallback keeps the session usable if the theme has not been applied yet.
+local ok, strata_colors = pcall(dofile, "/etc/strata/theme/colors.lua")
+if not ok or type(strata_colors) ~= "table" then
+    strata_colors = { active = "rgba(7aa2f7ee)", inactive = "rgba(262c35aa)" }
+end
+
 hl.config({
     general = {
         gaps_in     = 4,
         gaps_out    = 8,
         border_size = 2,
         col = {
-            active_border   = { colors = { "rgba(6f7f8fee)" } },
-            inactive_border = { colors = { "rgba(2a2e33aa)" } },
+            active_border   = { colors = { strata_colors.active } },
+            inactive_border = { colors = { strata_colors.inactive } },
         },
         resize_on_border = true,
         layout           = "dwindle",

@@ -17,6 +17,7 @@ import Quickshell.Services.UPower
 import Quickshell.Services.Pipewire
 import QtQuick
 import QtQuick.Layouts
+import "root:/"
 
 ShellRoot {
     id: root
@@ -76,8 +77,8 @@ ShellRoot {
             screen: modelData
 
             anchors { top: true; left: true; right: true }
-            implicitHeight: 28
-            color: "#16191d"
+            implicitHeight: Theme.barHeight
+            color: Theme.bar
 
             RowLayout {
                 anchors.fill: parent
@@ -95,12 +96,13 @@ ShellRoot {
                             implicitWidth: 22
                             implicitHeight: 18
                             radius: 3
-                            color: modelData.active ? "#6f7f8f" : "#22262b"
+                            color: modelData.active ? Theme.accent : Theme.raised
                             Text {
                                 anchors.centerIn: parent
                                 text: modelData.name
-                                color: modelData.active ? "#ffffff" : "#8a9199"
-                                font.pixelSize: 11
+                                color: modelData.active ? Theme.bar : Theme.muted
+                                font.family: Theme.fontUi
+                    font.pixelSize: 11
                             }
                             MouseArea {
                                 anchors.fill: parent
@@ -115,7 +117,8 @@ ShellRoot {
                 // ---- Clock ------------------------------------------------
                 Text {
                     text: clock.date.toLocaleString(Qt.locale(), "ddd dd MMM  HH:mm")
-                    color: "#d7dbe0"
+                    color: Theme.text
+                    font.family: Theme.fontUi
                     font.pixelSize: 12
                     SystemClock { id: clock; precision: SystemClock.Minutes }
                 }
@@ -125,7 +128,8 @@ ShellRoot {
                 // ---- Volume -----------------------------------------------
                 Text {
                     property var sink: Pipewire.defaultAudioSink
-                    color: "#d7dbe0"
+                    color: Theme.text
+                    font.family: Theme.fontUi
                     font.pixelSize: 12
                     visible: sink !== null
                     text: {
@@ -161,7 +165,8 @@ ShellRoot {
                 // smoke test and most desktops.
                 Text {
                     property var battery: UPower.displayDevice
-                    color: "#d7dbe0"
+                    color: Theme.text
+                    font.family: Theme.fontUi
                     font.pixelSize: 12
                     visible: battery && battery.isLaptopBattery && battery.isPresent
                     text: visible

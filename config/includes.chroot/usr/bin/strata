@@ -223,6 +223,61 @@ cmd_install() {
 	echo
 }
 
+# Colour is one decision applied in five dialects, so it gets one command.
+cmd_theme() {
+	local action="${1:-show}" name="${2:-}"
+	local user_dir="${XDG_DATA_HOME:-$HOME/.local/share}/strata/themes"
+
+	case "$action" in
+		list)
+			local f
+			for f in /usr/share/strata/themes/*.theme "$user_dir"/*.theme; do
+				[[ -f "$f" ]] || continue
+				local n; n="$(basename "$f" .theme)"
+				local label; label="$(sed -n 's/^NAME="\(.*\)"/\1/p' "$f")"
+				# An `&&` here would end the loop under `set -e` the first
+				# time the comparison is false, printing only the themes up to
+				# the active one and no error at all.
+				local mark=" "
+				if [[ "$(readlink -f /etc/strata/theme/active.theme 2>/dev/null)" == "$(readlink -f "$f")" ]]; then
+					mark="*"
+				fi
+				printf '  %s %-16s %s\n' "$mark" "$n" "${label:-$n}"
+			done
+			;;
+		show)
+			if [[ -r /etc/strata/theme/active.theme ]]; then
+				sed -n 's/^NAME="\(.*\)"/\1/p' /etc/strata/theme/active.theme
+			else
+				printf 'No theme applied yet. Try: strata theme list\n'
+			fi
+			;;
+		set)
+			[[ -n "$name" ]] || { printf 'Usage: strata theme set <name>\n' >&2; return 1; }
+			local f=""
+			[[ -f "$user_dir/${name}.theme" ]] && f="$user_dir/${name}.theme"
+			[[ -z "$f" && -f "/usr/share/strata/themes/${name}.theme" ]] && f="/usr/share/strata/themes/${name}.theme"
+			[[ -n "$f" ]] || { printf 'No such theme: %s\n' "$name" >&2; return 1; }
+			sudo mkdir -p /etc/strata/theme
+			sudo ln -sfn "$f" /etc/strata/theme/active.theme
+			sudo /usr/lib/strata/apply-theme
+			# Everything else rereads its configuration on the next start; these
+			# two are running now and would otherwise keep the old colours.
+			#
+			# Only restart mako if it was actually running, and only from inside
+			# a Wayland session — started without one it fails to take its bus
+			# name and prints an error that has nothing to do with the theme.
+			if [[ -n "${WAYLAND_DISPLAY:-}" ]] && pkill -x mako >/dev/null 2>&1; then
+				setsid mako -c /etc/strata/theme/mako.conf >/dev/null 2>&1 &
+			fi
+			hyprctl reload >/dev/null 2>&1 || true
+			printf 'Theme set. Quickshell picks up the new colours on its next start.\n'
+			;;
+		*)
+			printf 'Usage: strata theme [list|show|set <name>]\n' >&2; return 1 ;;
+	esac
+}
+
 # What an agent on this system would run first, and what a person should paste
 # into a bug report. Text, ordered by how likely it is to matter.
 #
@@ -298,6 +353,7 @@ ${c_bold}$PROGRAM${c_off} — install optional Strata components
   $PROGRAM info <name>       where a component comes from
   $PROGRAM install <name>    install it
   $PROGRAM doctor            what is wrong, in a form you can paste
+  $PROGRAM theme [list|set]  one colour scheme for bar, menus, borders, terminal
 
 Strata's base image is a complete minimal desktop and nothing more, so browsers,
 editors and agent CLIs are installed on request. See ADR-0011.
@@ -311,6 +367,7 @@ case "${1:-}" in
 	info)          [[ $# -eq 2 ]] || die "usage: $PROGRAM info <name>";    cmd_info "$2" ;;
 	install)       [[ $# -eq 2 ]] || die "usage: $PROGRAM install <name>"; cmd_install "$2" ;;
 	doctor)        cmd_doctor ;;
+	theme)         shift; cmd_theme "$@" ;;
 	-h|--help|"")  usage ;;
 	*)             die "unknown command: $1  (try '$PROGRAM --help')" ;;
 esac

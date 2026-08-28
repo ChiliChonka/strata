@@ -221,6 +221,19 @@ check "bar parts dir exists"        "test -d /etc/xdg/quickshell/parts && echo y
 check "no bar parts by default"     "ls /etc/xdg/quickshell/parts | wc -l"       "0"
 check "parts are available"         "ls /usr/share/strata/parts"                 "health.qml"
 
+# One colour scheme, five dialects (ADR-0013). Each of these is a file some
+# other program has to be able to read, generated at build time — if the
+# generator did not run, the bar does not merely look wrong, it fails to load,
+# because Theme.qml cannot resolve Colors.qml.
+check "theme was applied at build"  "readlink /etc/strata/theme/active.theme"    "strata-dark"
+check "quickshell colours exist"    "test -f /etc/xdg/quickshell/Colors.qml && echo yes" "yes"
+check "foot include resolves"       "foot --check-config 2>&1 && echo valid"     "valid"
+check "foot has scheme colours"     "grep ^background= /etc/strata/theme/foot.ini" "16191d"
+check "hyprland border colours"     "grep active /etc/strata/theme/colors.lua"   "rgba("
+check "both themes are listed"      "strata theme list | wc -l"                  "2"
+check "the ui font is installed"    "fc-list : family | grep -c 'Inter Variable'" "1"
+check "the icon font is installed"  "fc-list : family | grep -c 'Material Icons'" "1"
+
 # The SUPER+D menu must list what is installed and nothing else. The fuzzel
 # terminal setting is what makes Terminal=true entries work at all: without it
 # fuzzel falls back to xterm, which is not installed, and picking an agent does

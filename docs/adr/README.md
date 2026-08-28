@@ -16,10 +16,11 @@ Significant architectural decisions are recorded here, one file per decision.
 | [0010](ADR-0010-xwayland-in-the-base-image.md) | XWayland stays in the base image | Accepted |
 | [0011](ADR-0011-optional-components.md) | Optional components and lazy installation | Accepted |
 | [0012](ADR-0012-complete-desktop-minimal-applications.md) | A complete desktop, not a minimal application set | Accepted |
+| [0013](ADR-0013-typography-icons-and-one-colour-scheme.md) | Typography, icons, and one colour scheme | Accepted |
 
 One decision is pending: the concrete package selection for the Bluetooth,
-brightness, and power-profile capabilities ADR-0012 requires. Until that record
-exists, those packages are not in the base image.
+brightness, and power-profile capabilities ADR-0012 requires. Typography, icons
+and colour were settled in ADR-0013.
 
 ## Format
 
