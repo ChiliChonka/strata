@@ -105,6 +105,18 @@ lb build
 log "Re-checking the snapshot pin against the built image"
 ./tests/check-no-snapshot-leak.sh
 
+# The boot parameters decide whether a prepared USB stick has any writable
+# space at all. Without "persistence" live-boot never looks for the partition,
+# and the failure is silent: the system boots fine and simply forgets
+# everything. Assert it on the generated bootloader configs, where a lost flag
+# would otherwise only surface on someone's stick.
+log "Checking the live boot parameters"
+for cfg in binary/boot/grub/grub.cfg binary/isolinux/live.cfg; do
+	[[ -f "$cfg" ]] || die "expected bootloader config missing: $cfg"
+	grep -q 'boot=live[^\n]*persistence' "$cfg" \
+		|| die "$cfg has no persistence in its live boot line — check auto/config, and check that no '#' comment was added inside the lb config call"
+done
+
 # --- Artifacts -------------------------------------------------------------
 
 # live-build emits strata-<version>-<arch>.hybrid.iso; the published name drops
