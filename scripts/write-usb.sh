@@ -42,6 +42,27 @@ set -- "${args[@]}"
 [[ $# -eq 2 ]] || die "Usage: sudo $0 [--persistent] <image.iso> /dev/sdX"
 iso="$1"; dev="$2"
 
+# Resolve /dev/disk/by-id/... to the kernel name, and prefer being given one.
+#
+# sdX names are assigned in discovery order and move. On the machine this was
+# written for, a stick that was /dev/sdd one day was /dev/sda the next, the
+# system disk had taken sdb, and /dev/sdd had become an iSCSI volume belonging
+# to a Kubernetes cluster — a device this script would have been asked to
+# overwrite. The removable check caught it, but by-id would have made the
+# question moot.
+if [[ -L "$dev" ]]; then
+	resolved="$(readlink -f "$dev")"
+	[[ -b "$resolved" ]] || die "$dev does not resolve to a block device"
+	log "$dev is currently $resolved"
+	dev="$resolved"
+elif [[ "$dev" == /dev/sd* || "$dev" == /dev/nvme* ]]; then
+	stable="$(find /dev/disk/by-id -lname "*/$(basename "$dev")" 2>/dev/null | grep -v -- '-part' | head -1)"
+	if [[ -n "$stable" ]]; then
+		warn "Device names move between boots. The stable name for this device is:"
+		warn "  $stable"
+	fi
+fi
+
 [[ $EUID -eq 0 ]] || die "Writing to a block device needs root. Re-run with sudo."
 [[ -f "$iso" ]] || die "No such image: $iso"
 [[ -b "$dev" ]] || die "$dev is not a block device."
