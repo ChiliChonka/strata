@@ -17,10 +17,12 @@ Significant architectural decisions are recorded here, one file per decision.
 | [0011](ADR-0011-optional-components.md) | Optional components and lazy installation | Accepted |
 | [0012](ADR-0012-complete-desktop-minimal-applications.md) | A complete desktop, not a minimal application set | Accepted |
 | [0013](ADR-0013-typography-icons-and-one-colour-scheme.md) | Typography, icons, and one colour scheme | Accepted |
+| [0014](ADR-0014-hardware-capability-packages.md) | Packages for the hardware capabilities ADR-0012 requires | Accepted |
 
-One decision is pending: the concrete package selection for the Bluetooth,
-brightness, and power-profile capabilities ADR-0012 requires. Typography, icons
-and colour were settled in ADR-0013.
+No decisions are currently pending. ADR-0013 settled typography, icons and
+colour; ADR-0014 settled the hardware-capability packages. ADR-0012's surface
+table still has rows without an implementation — Bluetooth, calendar, screenshot
+menu, window list — but those are work, not open questions.
 
 ## Format
 

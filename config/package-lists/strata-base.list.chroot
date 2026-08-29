@@ -55,3 +55,14 @@ systemd-timesyncd
 fonts-inter-variable
 fonts-jetbrains-mono
 fonts-material-design-icons-iconfont
+
+# Hardware capabilities ADR-0012 requires, selected in ADR-0014.
+#
+# upower is the one the battery bar element reads through Quickshell. It was
+# never installed, so on a laptop with a battery at 63% the element showed
+# nothing — the third case in this project of shipping a program and not the
+# thing it needs. Brightness, by contrast, needs no package: logind sets it.
+upower
+power-profiles-daemon
+bluez
+libspa-0.2-bluetooth

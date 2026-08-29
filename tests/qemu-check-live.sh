@@ -259,6 +259,14 @@ qga "pkill -x hypridle; sleep 1; sed -i 's/^sleep 25\$/sleep 1/' /usr/lib/strata
 sleep 3
 # Asserted on the summary: makoctl list prints summary, app name and urgency,
 # not the body that names the service.
+# The battery element reads UPower through Quickshell, and upower was never
+# installed — so on a laptop with a battery at 63% the element showed nothing,
+# and Quickshell said why in its log at every single login. Both halves are
+# asserted: that the service can be activated at all, and that the shell did not
+# complain about it.
+check "upower can be activated"     "ls /usr/share/dbus-1/system-services/ | grep -c UPower || true" "1"
+check "the shell reached upower"    "cat \"\$XDG_RUNTIME_DIR\"/quickshell/by-id/*/log.log 2>/dev/null | tr -d '\\0' | grep -ci 'Could not launch service org.freedesktop.UPower' || true" "0"
+
 check "the session reports a failure" "E=\$(tr '\\0' '\\n' < /proc/\$(pgrep -x quickshell)/environ | grep -E '^(DBUS_SESSION_BUS_ADDRESS|XDG_RUNTIME_DIR)='); sudo -u user env \$E makoctl list" "Part of the desktop did not start"
 check "the live user exists"        "getent passwd user"                         "/home/user"
 check "Strata defaults are present" "test -f /etc/strata/hypr/hyprland.lua && echo yes" "yes"
