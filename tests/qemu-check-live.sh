@@ -122,6 +122,23 @@ send({"execute": "input-send-event", "arguments": {"events": [
 PYEOF
 }
 
+key() {  # $1 = a QEMU key name, e.g. esc
+	python3 - "$wd/qmp.sock" "$1" <<'PYEOF'
+import json, socket, sys
+s = socket.socket(socket.AF_UNIX); s.settimeout(10); s.connect(sys.argv[1])
+f = s.makefile("rw"); f.readline()
+def send(cmd):
+    f.write(json.dumps(cmd) + "\n"); f.flush()
+    while True:
+        r = json.loads(f.readline())
+        if "return" in r or "error" in r:
+            return r
+send({"execute": "qmp_capabilities"})
+send({"execute": "send-key", "arguments":
+      {"keys": [{"type": "qcode", "data": sys.argv[2]}]}})
+PYEOF
+}
+
 drag() {  # $1..$4 = x1 y1 x2 y2 — press, move, release
 	# A region screenshot cannot be tested without this: slurp draws nothing
 	# until something is being dragged, so a click alone proves only that it
@@ -147,14 +164,30 @@ def button(down):
     send({"execute": "input-send-event", "arguments": {"events": [
         {"type": "btn", "data": {"down": down, "button": "left"}}]}})
 send({"execute": "qmp_capabilities"})
-at(x1, y1); time.sleep(0.2)
-button(True); time.sleep(0.2)
-# Several steps: a single jump can be read as a click that happened to move.
-for i in range(1, 9):
-    at(x1 + (x2 - x1) * i // 8, y1 + (y2 - y1) * i // 8)
-    time.sleep(0.05)
-time.sleep(0.2)
-button(False)
+# Generously slow. A surface that has just appeared has to receive its pointer
+# enter before a press means anything to it, and a drag delivered in a tenth of
+# a second was ignored entirely by slurp — which sat waiting while the selection
+# it never saw came and went.
+# Position and button travel in one batch. Sent as separate input-send-event
+# calls the press was ignored by slurp entirely — it kept waiting through a full
+# drag it never saw, while Escape in the same session closed it immediately, so
+# it was reachable and simply not being told where the pointer was.
+def at_and(x, y, extra=None):
+    ev = [{"type": "abs", "data": {"axis": "x", "value": x * 32767 // W}},
+          {"type": "abs", "data": {"axis": "y", "value": y * 32767 // H}}]
+    if extra:
+        ev.append(extra)
+    send({"execute": "input-send-event", "arguments": {"events": ev}})
+
+at_and(x1, y1); time.sleep(0.5)
+at_and(x1, y1, {"type": "btn", "data": {"down": True, "button": "left"}})
+time.sleep(0.3)
+for i in range(1, 17):
+    at_and(x1 + (x2 - x1) * i // 16, y1 + (y2 - y1) * i // 16)
+    time.sleep(0.06)
+time.sleep(0.3)
+at_and(x2, y2, {"type": "btn", "data": {"down": False, "button": "left"}})
+time.sleep(0.3)
 PYEOF
 }
 
@@ -214,7 +247,9 @@ if [[ $# -gt 0 ]]; then
 		IFS=';' read -ra clicks <<<"$STRATA_CLICK"
 		for c in "${clicks[@]}"; do
 			IFS=, read -r cx cy cb <<<"$c"
-			if [[ "${cb:-left}" == "drag" ]]; then
+			if [[ "${cb:-left}" == "key" ]]; then
+				key "$cx"
+			elif [[ "${cb:-left}" == "drag" ]]; then
 				# x,y,drag,x2,y2 — the end point rides along in the same entry
 				IFS=, read -r _ _ _ dx dy <<<"$c"
 				drag "$cx" "$cy" "$dx" "$dy"
