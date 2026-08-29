@@ -178,6 +178,9 @@ ShellRoot {
                     }
                 }
 
+                // What is open, next to the workspaces it belongs with.
+                Elements.Windows {}
+
                 Item { Layout.fillWidth: true }
 
                 // ---- The desktop's own controls ---------------------------

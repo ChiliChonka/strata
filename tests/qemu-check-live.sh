@@ -367,7 +367,7 @@ check "the icon font is installed"  "fc-list : family | grep -c 'Material Icons'
 # scanned, so one of them failing to load takes the whole bar with it — which is
 # the intent, but it makes a check for QML errors load-bearing rather than nice
 # to have.
-check "bar elements are present"    "ls /etc/xdg/quickshell/elements | wc -l"    "8"
+check "bar elements are present"    "ls /etc/xdg/quickshell/elements | wc -l"    "9"
 # ADR-0012's table, row by row. Bluetooth needed bluez, which ADR-0014 added;
 # before that this element could not have worked at all.
 check "the clock element exists"    "test -f /etc/xdg/quickshell/elements/Clock.qml && echo yes" "yes"
@@ -376,6 +376,11 @@ check "the clock element exists"    "test -f /etc/xdg/quickshell/elements/Clock.
 # had both.
 check "screenshot tooling is there" "for c in grim slurp; do command -v \$c >/dev/null || exit 1; done; echo both" "both"
 check "bluetooth tooling is there"  "command -v bluetoothctl"                    "/usr/bin/bluetoothctl"
+# The window list learns which window has focus from Hyprland's event stream
+# rather than a timer, because activeToplevel is null in this Quickshell —
+# measured twice, in two sessions. If that ever changes the element keeps
+# working; if the event name changes it stops, and this notices.
+check "the window list is wired"    "grep -c 'onRawEvent' /etc/xdg/quickshell/elements/Windows.qml" "1"
 check "no QML errors in the shell"  "cat \"\$XDG_RUNTIME_DIR\"/hypr/*/hyprland.log 2>/dev/null | grep -ci 'ERROR.*\\.qml' || true" "0"
 check "the bar still has a clock"   "pgrep -cx quickshell"                       "1"
 # Lock is the one session action that silently does nothing if its binary is
