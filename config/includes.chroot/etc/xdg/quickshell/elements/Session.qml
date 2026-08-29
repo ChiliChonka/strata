@@ -12,11 +12,26 @@
 //
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Io
 import QtQuick
 import "root:/"
 
 Item {
     id: session
+
+    // A live session has no password anybody was told: live-config creates the
+    // account and Strata logs straight into it, so nothing ever asks for one.
+    // Locking it therefore cannot protect anything and can only shut the user
+    // out of the machine they were evaluating — which is exactly what happened,
+    // and cost someone their work. Reasoning that a deliberate click is the
+    // user's own choice was wrong: it is only a choice if they know what it
+    // costs, and here nothing tells them.
+    property bool live: false
+    Process {
+        running: true
+        command: ["sh", "-c", "test -d /run/live/medium && echo live || echo installed"]
+        stdout: StdioCollector { onStreamFinished: session.live = text.trim() === "live" }
+    }
 
     implicitWidth: pill.implicitWidth
     implicitHeight: pill.implicitHeight
@@ -41,6 +56,8 @@ Item {
             spacing: 2
 
             MenuRow {
+                visible: !session.live
+                height: session.live ? 0 : 30
                 icon: "lock"
                 text_: "Lock"
                 onActivated: { menu.close(); Quickshell.execDetached(["hyprlock"]); }
@@ -50,8 +67,13 @@ Item {
                 text_: "Suspend"
                 onActivated: {
                     menu.close();
-                    // Locked first, so the screen does not come back unlocked.
-                    Quickshell.execDetached(["sh", "-c", "hyprlock & sleep 1; systemctl suspend"]);
+                    // Locked first on an installed system, so the screen does
+                    // not come back unlocked. Not in a live session: the same
+                    // lock nobody can undo would be waiting on resume, which is
+                    // the trap this whole element used to contain twice.
+                    Quickshell.execDetached(session.live
+                        ? ["systemctl", "suspend"]
+                        : ["sh", "-c", "hyprlock & sleep 1; systemctl suspend"]);
                 }
             }
             MenuRow {

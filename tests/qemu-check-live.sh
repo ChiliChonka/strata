@@ -247,6 +247,15 @@ check "the lock config has no errors" "grep -c 'Config has errors' /tmp/hl.log |
 # In a live session the account's password is one nobody was told, so locking on
 # idle would strand whoever was trying the system out.
 check "live does not lock on idle"  "grep -c lock-session /etc/xdg/hypr/hypridle.conf || true" "0"
+# Idle was only one of three ways in. The session menu offered Lock, and Suspend
+# locked before suspending — both with a password live-config chose and nobody
+# was ever told. Someone lost a session to it.
+#
+# This is a tripwire, not a proof: it reads the file rather than the screen,
+# because whether a menu row is drawn cannot be asked of a running shell. The
+# absence of the row was confirmed by opening the menu and looking; this only
+# notices if that stops being true.
+check "live hides the lock entry"    "grep -c 'session.live' /etc/xdg/quickshell/elements/Session.qml" "4"
 
 # A diagnostic nobody runs is not a diagnostic. The session says so once, on its
 # own, when something did not come up — verified by breaking it deliberately and
