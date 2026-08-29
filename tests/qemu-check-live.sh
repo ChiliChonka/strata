@@ -381,6 +381,10 @@ check "wifi tooling for handoff"    "command -v nmtui"                          
 # nothing at all.
 check "fuzzel launches terminals"   "grep ^terminal= /etc/xdg/fuzzel/fuzzel.ini"  "foot -e"
 check "no agent in menu by default" "ls /usr/share/applications | grep -c ^strata- || true" "0"
+# The ssh component must not leave a reachable machine behind: a live account
+# has a password nobody was told, so an sshd started by the install would be an
+# open door the owner cannot close by changing it.
+check "ssh is not shipped running"  "systemctl is-active ssh 2>&1 || true"      "inactive"
 check "launcher entries exist"      "ls /usr/share/strata/desktop"                "strata-claude.desktop"
 check "hold reports a missing tool" "/usr/lib/strata/hold definitely-not-here </dev/null 2>&1 || true" "strata install"
 

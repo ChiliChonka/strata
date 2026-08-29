@@ -133,6 +133,27 @@ ShellRoot {
             implicitHeight: Theme.barHeight
             color: Theme.bar
 
+            // The clock sits outside the row, anchored to the middle of the
+            // window.
+            //
+            // It used to be a row item between two fillWidth spacers, which
+            // centres it in whatever space the two groups leave rather than on
+            // the screen — so it moved whenever either side changed width, and
+            // installing an agent shifted it visibly left. Anchoring it to the
+            // window makes it independent of both.
+            //
+            // On a narrow enough bar a long group could reach under it. Nothing
+            // prevents that; the alternative was keeping a clock that is never
+            // quite in the middle.
+            Text {
+                anchors.centerIn: parent
+                text: clock.date.toLocaleString(Qt.locale(), "ddd dd MMM  HH:mm")
+                color: Theme.text
+                font.family: Theme.fontUi
+                font.pixelSize: 12
+                SystemClock { id: clock; precision: SystemClock.Minutes }
+            }
+
             RowLayout {
                 anchors.fill: parent
                 anchors.leftMargin: 8
@@ -155,7 +176,7 @@ ShellRoot {
                                 text: modelData.name
                                 color: modelData.active ? Theme.bar : Theme.muted
                                 font.family: Theme.fontUi
-                    font.pixelSize: 11
+                                font.pixelSize: 11
                             }
                             MouseArea {
                                 anchors.fill: parent
@@ -163,17 +184,6 @@ ShellRoot {
                             }
                         }
                     }
-                }
-
-                Item { Layout.fillWidth: true }
-
-                // ---- Clock ------------------------------------------------
-                Text {
-                    text: clock.date.toLocaleString(Qt.locale(), "ddd dd MMM  HH:mm")
-                    color: Theme.text
-                    font.family: Theme.fontUi
-                    font.pixelSize: 12
-                    SystemClock { id: clock; precision: SystemClock.Minutes }
                 }
 
                 Item { Layout.fillWidth: true }

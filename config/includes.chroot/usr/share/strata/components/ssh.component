@@ -1,0 +1,16 @@
+# An SSH server, for looking at this machine from another one.
+#
+# Not in the base image on purpose: a desktop does not need to be reachable, and
+# ADR-0012 keeps the base a desktop rather than a workstation.
+#
+# The live session is the awkward case. live-config creates the account and
+# Strata logs straight into it, so nothing ever asks for a password and nobody
+# is told what it is. Starting sshd there would expose an account whose
+# credentials the owner does not know — so the component sets neither a password
+# nor a key, and says what to do instead.
+SUMMARY="OpenSSH server, so another machine can reach this one"
+CATEGORY="diagnostics"
+ORIGIN="debian"
+PACKAGES="openssh-server"
+POST_INSTALL="systemctl disable --now ssh"
+NOTE="Not started. On a live session the account has a password nobody was told, so start it only after setting one: 'sudo passwd user', then 'sudo systemctl start ssh'. Better, copy a key over first and set PasswordAuthentication no."
