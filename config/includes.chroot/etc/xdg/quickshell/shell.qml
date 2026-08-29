@@ -133,25 +133,17 @@ ShellRoot {
             implicitHeight: Theme.barHeight
             color: Theme.bar
 
-            // The clock sits outside the row, anchored to the middle of the
-            // window.
+            // Anchored to the middle of the window, not placed in the row.
             //
-            // It used to be a row item between two fillWidth spacers, which
-            // centres it in whatever space the two groups leave rather than on
-            // the screen — so it moved whenever either side changed width, and
-            // installing an agent shifted it visibly left. Anchoring it to the
-            // window makes it independent of both.
+            // As a row item between two stretching spacers it was centred in
+            // whatever space the two groups left, so it moved whenever either
+            // side changed width — installing an agent shifted it visibly left.
             //
             // On a narrow enough bar a long group could reach under it. Nothing
-            // prevents that; the alternative was keeping a clock that is never
-            // quite in the middle.
-            Text {
+            // prevents that; the alternative is a clock that is never quite in
+            // the middle.
+            Elements.Clock {
                 anchors.centerIn: parent
-                text: clock.date.toLocaleString(Qt.locale(), "ddd dd MMM  HH:mm")
-                color: Theme.text
-                font.family: Theme.fontUi
-                font.pixelSize: 12
-                SystemClock { id: clock; precision: SystemClock.Minutes }
             }
 
             RowLayout {
@@ -193,6 +185,8 @@ ShellRoot {
                 // ADR-0012's surface list, one file each under elements/. They
                 // are named here rather than scanned: these are the desktop, not
                 // optional extras, and a missing one should be a loud error.
+                Elements.Screenshot {}
+                Elements.Bluetooth {}
                 Elements.Brightness {}
                 Elements.Audio {}
                 Elements.Battery {}

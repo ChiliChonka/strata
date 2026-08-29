@@ -367,7 +367,15 @@ check "the icon font is installed"  "fc-list : family | grep -c 'Material Icons'
 # scanned, so one of them failing to load takes the whole bar with it — which is
 # the intent, but it makes a check for QML errors load-bearing rather than nice
 # to have.
-check "bar elements are present"    "ls /etc/xdg/quickshell/elements | wc -l"    "5"
+check "bar elements are present"    "ls /etc/xdg/quickshell/elements | wc -l"    "8"
+# ADR-0012's table, row by row. Bluetooth needed bluez, which ADR-0014 added;
+# before that this element could not have worked at all.
+check "the clock element exists"    "test -f /etc/xdg/quickshell/elements/Clock.qml && echo yes" "yes"
+# One at a time: `command -v grim slurp` reports only the first argument, so
+# counting its output said one where two were meant and failed on an image that
+# had both.
+check "screenshot tooling is there" "for c in grim slurp; do command -v \$c >/dev/null || exit 1; done; echo both" "both"
+check "bluetooth tooling is there"  "command -v bluetoothctl"                    "/usr/bin/bluetoothctl"
 check "no QML errors in the shell"  "cat \"\$XDG_RUNTIME_DIR\"/hypr/*/hyprland.log 2>/dev/null | grep -ci 'ERROR.*\\.qml' || true" "0"
 check "the bar still has a clock"   "pgrep -cx quickshell"                       "1"
 # Lock is the one session action that silently does nothing if its binary is
