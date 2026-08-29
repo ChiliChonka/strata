@@ -104,8 +104,21 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
+                    // hl.dsp.focus, not "focuswindow": Hyprland.dispatch wraps
+                    // its argument in hl.dispatch(...) and the Lua config
+                    // evaluates it, so a bare dispatcher line is a syntax
+                    // error — "')' expected near 'address'". Every click on
+                    // this list failed that way, silently, into a log nobody
+                    // reads.
+                    //
+                    // The accepted form came from Hyprland's own complaint:
+                    // "expected one of: direction, monitor, window,
+                    // urgent_or_last, last", and the selector has to be
+                    // "address:0x…" rather than the bare address, which it
+                    // rejects with "window not found".
                     onClicked: Hyprland.dispatch(
-                        "focuswindow address:0x" + parent.modelData.address)
+                        'hl.dsp.focus({ window = "address:0x'
+                        + parent.modelData.address + '" })')
                 }
             }
         }

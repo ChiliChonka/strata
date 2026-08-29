@@ -462,6 +462,11 @@ check "bluetooth tooling is there"  "command -v bluetoothctl"                   
 # measured twice, in two sessions. If that ever changes the element keeps
 # working; if the event name changes it stops, and this notices.
 check "the window list is wired"    "grep -c 'onRawEvent' /etc/xdg/quickshell/elements/Windows.qml" "1"
+# Every click on the window list failed silently: Hyprland.dispatch wraps its
+# argument in hl.dispatch(...) and the Lua config evaluates it, so "focuswindow
+# address:0x…" is a syntax error, not a dispatcher. The failure went to a log
+# nobody reads. Asserted by dispatching for real and looking at the answer.
+check "focusing a window works"     "hyprctl dispatch \"hl.dsp.focus({ window = \\\"address:\$(hyprctl clients -j | grep -m1 address | grep -oE '0x[0-9a-f]+')\\\" })\" 2>&1" "ok"
 # Twice in one day an element used Process without importing Quickshell.Io,
 # which is not a warning — the type fails to resolve and the whole bar refuses
 # to load. Cheap to check, and it names the file instead of leaving a stack of
