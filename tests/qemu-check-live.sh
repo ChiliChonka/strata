@@ -247,6 +247,19 @@ check "the lock config has no errors" "grep -c 'Config has errors' /tmp/hl.log |
 # In a live session the account's password is one nobody was told, so locking on
 # idle would strand whoever was trying the system out.
 check "live does not lock on idle"  "grep -c lock-session /etc/xdg/hypr/hypridle.conf || true" "0"
+
+# A diagnostic nobody runs is not a diagnostic. The session says so once, on its
+# own, when something did not come up — verified by breaking it deliberately and
+# asking mako what it was told, rather than by reading the script.
+log "Breaking the session on purpose to see whether it says so"
+# Both halves run as the session user, not as root: root reaches the session bus
+# but the notification is not delivered and makoctl reports ENOTCONN, which
+# looks exactly like the feature being broken.
+qga "pkill -x hypridle; sleep 1; sed -i 's/^sleep 25\$/sleep 1/' /usr/lib/strata/session-check; E=\$(tr '\\0' '\\n' < /proc/\$(pgrep -x quickshell)/environ | grep -E '^(DBUS_SESSION_BUS_ADDRESS|XDG_RUNTIME_DIR)='); sudo -u user env \$E /usr/lib/strata/session-check; true" >/dev/null
+sleep 3
+# Asserted on the summary: makoctl list prints summary, app name and urgency,
+# not the body that names the service.
+check "the session reports a failure" "E=\$(tr '\\0' '\\n' < /proc/\$(pgrep -x quickshell)/environ | grep -E '^(DBUS_SESSION_BUS_ADDRESS|XDG_RUNTIME_DIR)='); sudo -u user env \$E makoctl list" "Part of the desktop did not start"
 check "the live user exists"        "getent passwd user"                         "/home/user"
 check "Strata defaults are present" "test -f /etc/strata/hypr/hyprland.lua && echo yes" "yes"
 check "the user config loads them"  "grep dofile /home/user/.config/hypr/hyprland.lua" "/etc/strata/hypr"

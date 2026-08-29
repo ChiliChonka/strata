@@ -165,6 +165,9 @@ progress-color=over #${base0D}
 border-radius=10
 border-size=1
 padding=10
+# Wide enough for a service name plus what to do about it; the default of 300
+# elided the useful half of Strata's own session warning.
+width=420
 default-timeout=6000
 font=Inter Variable 10
 

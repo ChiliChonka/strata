@@ -41,6 +41,11 @@ hl.on("hyprland.start", function()
     -- Idle and lock handling.
     hl.exec_cmd("hypridle")
 
+    -- Says something once if part of the above did not come up. Silent
+    -- otherwise. hypridle sat here dying instantly for weeks and nothing said
+    -- so; `strata doctor` reported it to nobody.
+    hl.exec_cmd("/usr/lib/strata/session-check")
+
     -- Clipboard history. On Wayland the clipboard is owned by the source
     -- client, so without this, copying and then closing an application loses
     -- the content.
