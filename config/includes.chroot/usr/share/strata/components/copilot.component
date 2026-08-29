@@ -1,11 +1,19 @@
-# GitHub Copilot CLI ships as an extension to gh, which IS in Debian — so the
-# Debian part and the external part are unusually clearly separated here.
-SUMMARY="GitHub Copilot CLI, as a gh extension"
+# GitHub Copilot CLI, an extension to GitHub's own CLI.
+#
+# This component declared PACKAGES="gh" until it was checked on a running
+# system: there is no gh package in Debian. `strata install copilot` would have
+# stopped on an apt error. Nobody had run it.
+#
+# GitHub publishes an APT repository as well as a plain .deb. ADR-0011 takes the
+# .deb: a repository key is trusted for every package name, including
+# replacements for system components, while a single .deb grants nothing beyond
+# itself.
+SUMMARY="GitHub Copilot CLI, as an extension to gh"
 CATEGORY="agent"
 ORIGIN="external"
-SOURCE="GitHub (gh extension install)"
-PACKAGES="gh"
-POST_INSTALL="gh extension install github/gh-copilot"
+SOURCE="GitHub (cli/cli releases, then a gh extension)"
+PACKAGES="curl"
+POST_INSTALL="/usr/lib/strata/install-gh && gh extension install github/gh-copilot"
 BINARY="gh"
 NOTE="Requires 'gh auth login' before first use."
 LAUNCHER="strata-copilot"

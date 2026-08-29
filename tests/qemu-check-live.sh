@@ -275,6 +275,11 @@ check "the user config loads them"  "grep dofile /home/user/.config/hypr/hyprlan
 # ADR-0011. The base image ships no browser on purpose, so `browser` with
 # nothing installed must explain itself rather than fail obscurely — that
 # message is the only discovery path a new user has.
+# Every Debian package a component names has to exist. copilot declared
+# PACKAGES="gh" for months; there is no gh in Debian, so installing it would
+# have stopped on an apt error — nobody had run it, and nothing checked.
+check "component packages resolve" "for p in \$(cat /usr/share/strata/components/*.component | sed -n 's/^PACKAGES=\"\\(.*\\)\"/\\1/p'); do apt-cache show \$p >/dev/null 2>&1 || echo \"MISSING \$p\"; done; echo done" "done"
+
 check "strata lists components"     "strata list"                                "firefox"
 check "no browser by default"       "ls /usr/share/applications | grep -c -i -e firefox -e chromium || true" "0"
 check "browser explains itself"     "browser 2>&1 || true"                       "strata install firefox"
