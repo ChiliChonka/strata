@@ -67,10 +67,27 @@ Item {
         bright.current = v;
         // The sysfs write is kept as a fallback for a system where the file is
         // group-writable; on a stock install only the logind call succeeds.
+        // Three attempts, in order of how likely they are to be right.
+        //
+        // logind refuses a session that has no seat — "Your session has no
+        // seat, refusing" — and a shell restarted from ssh lands in exactly
+        // such a session, taking its children with it. That is not theoretical:
+        // restarting this shell over ssh to look at something else made every
+        // brightness change fail, and the only symptom was the slider snapping
+        // back, because the four-second poll put the real value straight back.
+        //
+        // So if `self` has no seat, the session that does is looked up and used
+        // instead. The sysfs write stays last for a system where the file is
+        // group-writable.
         setter.command = ["sh", "-c",
-            "busctl call org.freedesktop.login1 /org/freedesktop/login1/session/self " +
-            "org.freedesktop.login1.Session SetBrightness ssu backlight " +
-            bright.device + " " + v + " 2>/dev/null || " +
+            "set -- backlight " + bright.device + " " + v + "; " +
+            "call() { busctl call org.freedesktop.login1 \"$1\" " +
+            "org.freedesktop.login1.Session SetBrightness ssu \"$2\" \"$3\" \"$4\" " +
+            "2>/dev/null; }; " +
+            "call /org/freedesktop/login1/session/self \"$@\" && exit 0; " +
+            "s=$(loginctl list-sessions --no-legend 2>/dev/null " +
+            "    | awk '$4 == \"seat0\" { print $1; exit }'); " +
+            "[ -n \"$s\" ] && call \"/org/freedesktop/login1/session/$s\" \"$@\" && exit 0; " +
             "printf '%s' " + v + " > /sys/class/backlight/" + bright.device + "/brightness"];
         setter.running = true;
     }
