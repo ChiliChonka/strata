@@ -45,7 +45,11 @@ Item {
     // wlan0), not the network's.
     readonly property var activeDevice: wired ? wiredDevice : wifiDevice
     readonly property string ifname: activeDevice ? (activeDevice.name || "") : ""
-    readonly property string address: activeDevice ? (activeDevice.address || "") : ""
+    // NetworkDevice.address is the MAC — measured on real hardware, where it
+    // returned 2C:F0:5D:E0:23:32 for a wired link. The address a person opens
+    // this panel to read is the IPv4 one, and the API does not expose it, so it
+    // is read from `ip` alongside the throughput counters.
+    property string ipv4: ""
 
     property real rxRate: 0      // bytes per second
     property real txRate: 0
@@ -61,11 +65,15 @@ Item {
         id: traffic
         command: ["sh", "-c",
             "cat /sys/class/net/" + net.ifname + "/statistics/rx_bytes " +
-            "    /sys/class/net/" + net.ifname + "/statistics/tx_bytes 2>/dev/null"]
+            "    /sys/class/net/" + net.ifname + "/statistics/tx_bytes 2>/dev/null; " +
+            "ip -4 -brief addr show " + net.ifname + " 2>/dev/null " +
+            "  | awk '{print $3}' | cut -d/ -f1"]
         stdout: StdioCollector {
             onStreamFinished: {
-                const v = text.trim().split(/\s+/).map(Number);
-                if (v.length !== 2 || isNaN(v[0])) return;
+                const lines = text.trim().split(/\s+/);
+                net.ipv4 = lines.length > 2 ? lines[2] : "";
+                const v = [Number(lines[0]), Number(lines[1])];
+                if (isNaN(v[0]) || isNaN(v[1])) return;
                 const now = Date.now() / 1000;
                 if (net.lastRx >= 0 && now > net.lastAt) {
                     const dt = now - net.lastAt;
@@ -81,6 +89,9 @@ Item {
         interval: 1500
         repeat: true
         running: menu.open && net.ifname !== ""
+        // Fire once as soon as the panel opens, so the address is there
+        // immediately rather than a second and a half later.
+        triggeredOnStart: true
         onTriggered: traffic.running = true
     }
 
@@ -171,8 +182,8 @@ Item {
                     topPadding: 6
 
                     Text {
-                        text: net.address !== "" ? net.address : "no address"
-                        color: net.address !== "" ? Theme.text : Theme.muted
+                        text: net.ipv4 !== "" ? net.ipv4 : "no address yet"
+                        color: net.ipv4 !== "" ? Theme.text : Theme.muted
                         font.family: Theme.fontMono
                         font.pixelSize: 11
                     }

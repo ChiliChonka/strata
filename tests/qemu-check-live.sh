@@ -214,6 +214,39 @@ check "the notification daemon runs" "pgrep -c mako"                            
 # -x, not -f: matching the full command line makes pgrep find this very check,
 # which reported 3 processes where there is one.
 check "the polkit agent runs"       "pgrep -cx hyprpolkitagent"                  "1"
+# hypridle was autostarted for weeks and exited immediately every time, because
+# no hypridle.conf was ever shipped and it refuses to run without one. The
+# checks asked about mako and the polkit agent and never about this, so idle
+# handling was broken in every image and no test noticed.
+check "the idle daemon runs"        "pgrep -cx hypridle"                         "1"
+check "it has a configuration"      "test -f /etc/xdg/hypr/hypridle.conf && echo yes" "yes"
+# hyprlock refuses to start without one too, so the session menu's Lock entry
+# did nothing and hypridle's lock would have failed the same way. Asked of
+# hyprlock itself rather than by checking the file exists: a config that is
+# present but rejected leaves the same broken Lock button.
+# hyprlock refuses to start without a configuration, which is why the session
+# menu's Lock entry did nothing at all. Verifying that needs the session's
+# environment: hyprlock connects to the compositor first and aborts there, so
+# without WAYLAND_DISPLAY it never reaches the config and every question about
+# the config answers itself vacuously — which is exactly how two earlier
+# versions of this check passed while proving nothing.
+#
+# The environment is taken from quickshell, which Hyprland started and which
+# therefore has it. Running it locks the screen, so it is killed straight
+# after and Hyprland's "the lock crashed" state is cleared, or every later
+# screenshot would be that error page.
+qga "env \$(tr '\\0' '\\n' < /proc/\$(pgrep -x quickshell)/environ | grep -E '^(WAYLAND_DISPLAY|XDG_RUNTIME_DIR|HYPRLAND_INSTANCE_SIGNATURE|DBUS_SESSION_BUS_ADDRESS)=') setsid hyprlock >/tmp/hl.log 2>&1 &" >/dev/null
+sleep 5
+qga "pgrep -cx hyprlock > /tmp/hl.count; pkill -x hyprlock; true" >/dev/null
+sleep 2
+qga "env \$(tr '\\0' '\\n' < /proc/\$(pgrep -x quickshell)/environ | grep -E '^(HYPRLAND_INSTANCE_SIGNATURE|XDG_RUNTIME_DIR)=') hyprctl eval 'hl.clear_crashed_lockscreen()'; true" >/dev/null
+sleep 1
+
+check "the lock screen starts"      "cat /tmp/hl.count"                          "1"
+check "the lock config has no errors" "grep -c 'Config has errors' /tmp/hl.log || true" "0"
+# In a live session the account's password is one nobody was told, so locking on
+# idle would strand whoever was trying the system out.
+check "live does not lock on idle"  "grep -c lock-session /etc/xdg/hypr/hypridle.conf || true" "0"
 check "the live user exists"        "getent passwd user"                         "/home/user"
 check "Strata defaults are present" "test -f /etc/strata/hypr/hyprland.lua && echo yes" "yes"
 check "the user config loads them"  "grep dofile /home/user/.config/hypr/hyprland.lua" "/etc/strata/hypr"

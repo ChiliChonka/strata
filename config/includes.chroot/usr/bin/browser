@@ -40,6 +40,11 @@ installed_browsers() {
 			# registers itself as a handler for http.
 			grep -q '^MimeType=.*x-scheme-handler/http' "$entry" 2>/dev/null || continue
 			name="$(basename "$entry")"
+			# Strata's own launcher passes both tests — it is categorised as a
+			# browser and handles http — but it is a wrapper that runs this
+			# script. Setting it as the default would make `browser` call
+			# itself for ever.
+			[[ "$name" == "strata-browser.desktop" ]] && continue
 			printf '%s\n' "$name"
 		done
 	done | sort -u
@@ -112,7 +117,9 @@ cmd_set() {
 	# else using x-www-browser agree with xdg-settings rather than contradicting
 	# it. Best effort: it needs root, and not every browser registers one.
 	local exec_line binary
-	exec_line="$(grep -m1 '^Exec=' "/usr/share/applications/$match" 2>/dev/null || true)"
+	local entry_path
+	entry_path="$(find_desktop_entry "$match" || true)"
+	exec_line="$(grep -m1 '^Exec=' "$entry_path" 2>/dev/null || true)"
 	binary="$(printf '%s' "${exec_line#Exec=}" | awk '{print $1}')"
 	if [[ -n "$binary" ]] && command -v update-alternatives >/dev/null 2>&1; then
 		if [[ $EUID -eq 0 ]]; then

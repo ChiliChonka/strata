@@ -1,0 +1,38 @@
+#!/bin/sh
+# Strata: do not lock the screen in a live session.
+#
+# The installed system locks after ten minutes, which is right for a machine
+# with an account somebody chose the password for. A live session's account is
+# created by live-config with a password nobody was told, so locking it strands
+# whoever was trying the system out — they would have to reboot, losing whatever
+# they were in the middle of evaluating.
+#
+# Blanking still happens. That saves the panel and is trivially undone by moving
+# the mouse.
+#
+# Same two guards as 2000-strata-greetd-autologin: live-config is removed during
+# installation, and the live medium is not mounted on an installed system.
+
+Hypridle_live()
+{
+	[ -e /run/live/medium ] || return 0
+	[ -f /etc/xdg/hypr/hypridle.conf ] || return 0
+
+	# Drop the locking listener and the sleep hooks, keep the blanking one.
+	cat > /etc/xdg/hypr/hypridle.conf <<'CONF'
+# Generated for the live session by /usr/lib/live/config/2010-strata-hypridle-live.
+# The installed system's version of this file also locks; see the comment there.
+
+general {
+    after_sleep_cmd = hyprctl dispatch dpms on
+}
+
+listener {
+    timeout = 780
+    on-timeout = hyprctl dispatch dpms off
+    on-resume = hyprctl dispatch dpms on
+}
+CONF
+}
+
+Hypridle_live
