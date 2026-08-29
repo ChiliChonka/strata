@@ -102,6 +102,26 @@ done
 sleep 8
 log "Session is up"
 
+move() {  # $1 = x, $2 = y — pointer motion with no button
+	python3 - "$wd/qmp.sock" "$1" "$2" <<'PYEOF'
+import json, socket, sys
+sock, x, y = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
+W, H = 1280, 800
+s = socket.socket(socket.AF_UNIX); s.settimeout(10); s.connect(sock)
+f = s.makefile("rw"); f.readline()
+def send(cmd):
+    f.write(json.dumps(cmd) + "\n"); f.flush()
+    while True:
+        r = json.loads(f.readline())
+        if "return" in r or "error" in r:
+            return r
+send({"execute": "qmp_capabilities"})
+send({"execute": "input-send-event", "arguments": {"events": [
+    {"type": "abs", "data": {"axis": "x", "value": x * 32767 // W}},
+    {"type": "abs", "data": {"axis": "y", "value": y * 32767 // H}}]}})
+PYEOF
+}
+
 click() {  # $1 = x, $2 = y, $3 = left|right — a real click, through QEMU's
 	# input layer. Hover states and popups cannot be asserted any other way:
 	# nothing in the guest can be asked "is the menu open".
@@ -158,7 +178,14 @@ if [[ $# -gt 0 ]]; then
 		IFS=';' read -ra clicks <<<"$STRATA_CLICK"
 		for c in "${clicks[@]}"; do
 			IFS=, read -r cx cy cb <<<"$c"
-			click "$cx" "$cy" "${cb:-left}"
+			if [[ "${cb:-left}" == "hover" ]]; then
+				# Move without pressing. Hover-to-switch between bar menus
+				# cannot be tested any other way, and it broke once already
+				# without anyone noticing until it was used by hand.
+				move "$cx" "$cy"
+			else
+				click "$cx" "$cy" "${cb:-left}"
+			fi
 			sleep 2
 		done
 	fi
@@ -190,6 +217,20 @@ check() {  # $1 = description, $2 = command, $3 = expected substring
 
 log "Checking the live system"
 check "hostname is strata"          "cat /etc/hostname"                          "strata"
+
+# The boot menu is the first thing anyone sees. live-build falls back to its own
+# splash if ours is missing, silently, so its absence looks like a design choice
+# rather than a build that dropped a file.
+# Grep the one line that matters, not the file: counting occurrences of "Strata"
+# counted the explanatory comment too, which is the same mistake the snapshot
+# leak test made twice against its own comments.
+check "boot menu is titled Strata"  "grep '^menu title' /run/live/medium/isolinux/menu.cfg"  "Strata"
+check "boot entries are named"      "grep 'menu label' /run/live/medium/isolinux/live.cfg"    "Strata"
+check "our splash was rendered"     "test -s /run/live/medium/isolinux/splash.png && echo yes" "yes"
+# The UEFI entries come from string literals inside live-build, not a template,
+# so they are renamed after generation. If live-build changes that wording the
+# hook stops matching, and this is what notices.
+check "UEFI entries are named"      "grep '^menuentry' /run/live/medium/boot/grub/grub.cfg | head -1" "Strata"
 check "apt uses the live archive"   "grep -v ^# /etc/apt/sources.list"           "deb.debian.org"
 check "no snapshot mirror"          "grep -c snapshot.debian.org /etc/apt/sources.list || true" "0"
 check "Secure Boot is enabled"      "mokutil --sb-state"                         "SecureBoot enabled"
@@ -200,6 +241,74 @@ check "the notification daemon runs" "pgrep -c mako"                            
 # -x, not -f: matching the full command line makes pgrep find this very check,
 # which reported 3 processes where there is one.
 check "the polkit agent runs"       "pgrep -cx hyprpolkitagent"                  "1"
+# hypridle was autostarted for weeks and exited immediately every time, because
+# no hypridle.conf was ever shipped and it refuses to run without one. The
+# checks asked about mako and the polkit agent and never about this, so idle
+# handling was broken in every image and no test noticed.
+check "the idle daemon runs"        "pgrep -cx hypridle"                         "1"
+check "it has a configuration"      "test -f /etc/xdg/hypr/hypridle.conf && echo yes" "yes"
+# hyprlock refuses to start without one too, so the session menu's Lock entry
+# did nothing and hypridle's lock would have failed the same way. Asked of
+# hyprlock itself rather than by checking the file exists: a config that is
+# present but rejected leaves the same broken Lock button.
+# hyprlock refuses to start without a configuration, which is why the session
+# menu's Lock entry did nothing at all. Verifying that needs the session's
+# environment: hyprlock connects to the compositor first and aborts there, so
+# without WAYLAND_DISPLAY it never reaches the config and every question about
+# the config answers itself vacuously — which is exactly how two earlier
+# versions of this check passed while proving nothing.
+#
+# The environment is taken from quickshell, which Hyprland started and which
+# therefore has it. Running it locks the screen, so it is killed straight
+# after and Hyprland's "the lock crashed" state is cleared, or every later
+# screenshot would be that error page.
+qga "env \$(tr '\\0' '\\n' < /proc/\$(pgrep -x quickshell)/environ | grep -E '^(WAYLAND_DISPLAY|XDG_RUNTIME_DIR|HYPRLAND_INSTANCE_SIGNATURE|DBUS_SESSION_BUS_ADDRESS)=') setsid hyprlock >/tmp/hl.log 2>&1 &" >/dev/null
+sleep 5
+qga "pgrep -cx hyprlock > /tmp/hl.count; pkill -x hyprlock; true" >/dev/null
+sleep 2
+qga "env \$(tr '\\0' '\\n' < /proc/\$(pgrep -x quickshell)/environ | grep -E '^(HYPRLAND_INSTANCE_SIGNATURE|XDG_RUNTIME_DIR)=') hyprctl eval 'hl.clear_crashed_lockscreen()'; true" >/dev/null
+sleep 1
+
+check "the lock screen starts"      "cat /tmp/hl.count"                          "1"
+check "the lock config has no errors" "grep -c 'Config has errors' /tmp/hl.log || true" "0"
+# In a live session the account's password is one nobody was told, so locking on
+# idle would strand whoever was trying the system out.
+check "live does not lock on idle"  "grep -c lock-session /etc/xdg/hypr/hypridle.conf || true" "0"
+# Idle was only one of three ways in. The session menu offered Lock, and Suspend
+# locked before suspending — both with a password live-config chose and nobody
+# was ever told. Someone lost a session to it.
+#
+# This is a tripwire, not a proof: it reads the file rather than the screen,
+# because whether a menu row is drawn cannot be asked of a running shell. The
+# absence of the row was confirmed by opening the menu and looking; this only
+# notices if that stops being true.
+check "live hides the lock entry"    "grep -c 'session.live' /etc/xdg/quickshell/elements/Session.qml" "4"
+
+# A diagnostic nobody runs is not a diagnostic. The session says so once, on its
+# own, when something did not come up — verified by breaking it deliberately and
+# asking mako what it was told, rather than by reading the script.
+log "Breaking the session on purpose to see whether it says so"
+# Both halves run as the session user, not as root: root reaches the session bus
+# but the notification is not delivered and makoctl reports ENOTCONN, which
+# looks exactly like the feature being broken.
+qga "pkill -x hypridle; sleep 1; sed -i 's/^sleep 25\$/sleep 1/' /usr/lib/strata/session-check; E=\$(tr '\\0' '\\n' < /proc/\$(pgrep -x quickshell)/environ | grep -E '^(DBUS_SESSION_BUS_ADDRESS|XDG_RUNTIME_DIR)='); sudo -u user env \$E /usr/lib/strata/session-check; true" >/dev/null
+sleep 3
+# Asserted on the summary: makoctl list prints summary, app name and urgency,
+# not the body that names the service.
+# The battery element reads UPower through Quickshell, and upower was never
+# installed — so on a laptop with a battery at 63% the element showed nothing,
+# and Quickshell said why in its log at every single login. Both halves are
+# asserted: that the service can be activated at all, and that the shell did not
+# complain about it.
+# Asked of the bus, not of a directory listing: counting files named *UPower*
+# expected exactly one and got two, because power-profiles-daemon ships
+# org.freedesktop.UPower.PowerProfiles.service and arrived in the same commit.
+# Whether the name can be reached is the question; how many files mention it is
+# not.
+check "upower can be activated"     "busctl --system introspect org.freedesktop.UPower /org/freedesktop/UPower 2>&1 | head -1" "NAME"
+check "the shell reached upower"    "cat \"\$XDG_RUNTIME_DIR\"/quickshell/by-id/*/log.log 2>/dev/null | tr -d '\\0' | grep -ci 'Could not launch service org.freedesktop.UPower' || true" "0"
+
+check "the session reports a failure" "E=\$(tr '\\0' '\\n' < /proc/\$(pgrep -x quickshell)/environ | grep -E '^(DBUS_SESSION_BUS_ADDRESS|XDG_RUNTIME_DIR)='); sudo -u user env \$E makoctl list" "Part of the desktop did not start"
 check "the live user exists"        "getent passwd user"                         "/home/user"
 check "Strata defaults are present" "test -f /etc/strata/hypr/hyprland.lua && echo yes" "yes"
 check "the user config loads them"  "grep dofile /home/user/.config/hypr/hyprland.lua" "/etc/strata/hypr"
@@ -207,9 +316,25 @@ check "the user config loads them"  "grep dofile /home/user/.config/hypr/hyprlan
 # ADR-0011. The base image ships no browser on purpose, so `browser` with
 # nothing installed must explain itself rather than fail obscurely — that
 # message is the only discovery path a new user has.
+# Every Debian package a component names has to exist. copilot declared
+# PACKAGES="gh" for months; there is no gh in Debian, so installing it would
+# have stopped on an apt error — nobody had run it, and nothing checked.
+check "component packages resolve" "for p in \$(cat /usr/share/strata/components/*.component | sed -n 's/^PACKAGES=\"\\(.*\\)\"/\\1/p'); do apt-cache show \$p >/dev/null 2>&1 || echo \"MISSING \$p\"; done; echo done" "done"
+
 check "strata lists components"     "strata list"                                "firefox"
 check "no browser by default"       "ls /usr/share/applications | grep -c -i -e firefox -e chromium || true" "0"
 check "browser explains itself"     "browser 2>&1 || true"                       "strata install firefox"
+
+# XDG_DATA_DIRS unset means /usr/local/share:/usr/share, and Flatpak's exports
+# are in neither — an application installed from Flathub is then invisible to
+# xdg-open, to xdg-settings and to the launcher. Brave installed fine and
+# nothing on the system could open it.
+# Asked of quickshell, not of Hyprland. /proc/PID/environ is the environment a
+# process was started with, and Hyprland sets this one later, while reading its
+# config — so the compositor's own environ never shows it however well it works.
+# What matters is what the session's programs inherit, and quickshell is one.
+check "session sees flatpak exports" "tr '\\0' '\\n' < /proc/\$(pgrep -x quickshell)/environ | grep XDG_DATA_DIRS" "/var/lib/flatpak/exports/share"
+check "gio is available to launch"  "command -v gio"                             "/usr/bin/gio"
 
 # The bar grows with what is installed and stays minimal when nothing is
 # (ADR-0003, ADR-0011). Both halves need asserting: that the drop-in directory
@@ -220,6 +345,35 @@ check "doctor sees the session"     "strata doctor 2>&1"                        
 check "bar parts dir exists"        "test -d /etc/xdg/quickshell/parts && echo yes" "yes"
 check "no bar parts by default"     "ls /etc/xdg/quickshell/parts | wc -l"       "0"
 check "parts are available"         "ls /usr/share/strata/parts"                 "health.qml"
+
+# One colour scheme, five dialects (ADR-0013). Each of these is a file some
+# other program has to be able to read, generated at build time — if the
+# generator did not run, the bar does not merely look wrong, it fails to load,
+# because Theme.qml cannot resolve Colors.qml.
+check "theme was applied at build"  "readlink /etc/strata/theme/active.theme"    "strata-dark"
+check "quickshell colours exist"    "test -f /etc/xdg/quickshell/Colors.qml && echo yes" "yes"
+# `foot --check-config` returns success on a deprecation warning, so asserting
+# its exit status passed while every terminal launch printed a wall of them.
+# Assert on the output instead: a correct configuration prints nothing at all.
+check "foot config is silent"       "out=\$(foot --check-config 2>&1); [ -z \"\$out\" ] && echo silent || echo \"\$out\"" "silent"
+check "foot uses current sections"  "grep -c '^\\[colors-' /etc/strata/theme/foot.ini" "2"
+check "foot has scheme colours"     "grep ^background= /etc/strata/theme/foot.ini" "16191d"
+check "hyprland border colours"     "grep active /etc/strata/theme/colors.lua"   "rgba("
+check "both themes are listed"      "strata theme list | wc -l"                  "2"
+check "the ui font is installed"    "fc-list : family | grep -c 'Inter Variable'" "1"
+check "the icon font is installed"  "fc-list : family | grep -c 'Material Icons'" "1"
+
+# ADR-0012's surface list. These are wired into shell.qml by name rather than
+# scanned, so one of them failing to load takes the whole bar with it — which is
+# the intent, but it makes a check for QML errors load-bearing rather than nice
+# to have.
+check "bar elements are present"    "ls /etc/xdg/quickshell/elements | wc -l"    "5"
+check "no QML errors in the shell"  "cat \"\$XDG_RUNTIME_DIR\"/hypr/*/hyprland.log 2>/dev/null | grep -ci 'ERROR.*\\.qml' || true" "0"
+check "the bar still has a clock"   "pgrep -cx quickshell"                       "1"
+# Lock is the one session action that silently does nothing if its binary is
+# missing; the rest are systemctl, which is not going anywhere.
+check "lock screen is installed"    "command -v hyprlock"                        "/usr/bin/hyprlock"
+check "wifi tooling for handoff"    "command -v nmtui"                           "/usr/bin/nmtui"
 
 # The SUPER+D menu must list what is installed and nothing else. The fuzzel
 # terminal setting is what makes Terminal=true entries work at all: without it

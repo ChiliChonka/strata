@@ -6,17 +6,23 @@ Significant architectural decisions are recorded here, one file per decision.
 |---|---|---|
 | [0001](ADR-0001-debian-not-a-fork.md) | Remain Debian, do not become a Debian fork | Accepted |
 | [0002](ADR-0002-secure-boot.md) | Secure Boot is a core requirement | Accepted |
-| [0003](ADR-0003-minimal-core-optional-layers.md) | Minimal core, optional layers | Accepted |
+| [0003](ADR-0003-minimal-core-optional-layers.md) | Minimal core, optional layers | Superseded by 0012 |
 | [0004](ADR-0004-branding-without-desktop-fork.md) | Branding without building a custom desktop environment | Accepted |
 | [0005](ADR-0005-build-reproducibility-and-snapshot-pinning.md) | Build reproducibility and snapshot pinning | Accepted |
 | [0006](ADR-0006-live-iso-with-calamares-installer.md) | Live ISO with Calamares as the installation path | Accepted |
 | [0007](ADR-0007-default-filesystem-ext4.md) | Default filesystem is ext4 | Accepted |
 | [0008](ADR-0008-session-and-greeter.md) | Session management with greetd and tuigreet | Accepted |
-| [0009](ADR-0009-default-package-selection.md) | Default package selection for the minimal desktop | Accepted |
+| [0009](ADR-0009-default-package-selection.md) | Default package selection for the minimal desktop | Accepted (Bluetooth rows superseded by 0012) |
 | [0010](ADR-0010-xwayland-in-the-base-image.md) | XWayland stays in the base image | Accepted |
 | [0011](ADR-0011-optional-components.md) | Optional components and lazy installation | Accepted |
+| [0012](ADR-0012-complete-desktop-minimal-applications.md) | A complete desktop, not a minimal application set | Accepted |
+| [0013](ADR-0013-typography-icons-and-one-colour-scheme.md) | Typography, icons, and one colour scheme | Accepted |
+| [0014](ADR-0014-hardware-capability-packages.md) | Packages for the hardware capabilities ADR-0012 requires | Accepted |
 
-The design phase is complete. No decisions are currently pending.
+No decisions are currently pending. ADR-0013 settled typography, icons and
+colour; ADR-0014 settled the hardware-capability packages. ADR-0012's surface
+table still has rows without an implementation — Bluetooth, calendar, screenshot
+menu, window list — but those are work, not open questions.
 
 ## Format
 

@@ -1,0 +1,22 @@
+# The boot menu entries, replacing live-build's "Live system (amd64)".
+#
+# live-build copies this over its own template, so only the files that differ
+# need to exist here. @FLAVOUR@, @LINUX@, @INITRD@ and the append lines are
+# substituted at build time and must be left alone.
+#
+# "Safe graphics" rather than "fail-safe mode": the failsafe entry disables
+# acceleration and SMP, and the reason anyone picks it is that the screen stayed
+# black. Naming the symptom is more use than naming the mechanism.
+
+label live-@FLAVOUR@
+	menu label ^Strata
+	menu default
+	linux @LINUX@
+	initrd @INITRD@
+	append @APPEND_LIVE@
+
+label live-@FLAVOUR@-failsafe
+	menu label Strata (^safe graphics)
+	linux @LINUX@
+	initrd @INITRD@
+	append @APPEND_LIVE_FAILSAFE@

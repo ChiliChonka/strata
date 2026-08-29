@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted
+Accepted, except for the Bluetooth exclusions, which are superseded by
+[ADR-0012](ADR-0012-complete-desktop-minimal-applications.md). The tool choices
+in the table below stand. Concrete Bluetooth, brightness, and power-profile
+packages still need to be selected the same way the existing rows were.
 
 ## Context
 
@@ -124,7 +127,8 @@ it targets wlroots compositors, and Hyprland ships its own portal.
 
 PipeWire with WirePlumber per ARCHITECTURE.md. `pipewire-pulse` provides the
 PulseAudio compatibility layer that most applications still expect.
-Bluetooth audio via `libspa-0.2-bluetooth` is deferred to an optional profile.
+Bluetooth audio via `libspa-0.2-bluetooth` was deferred to an optional
+profile. ADR-0012 reverses this: Bluetooth belongs in the base image.
 
 NetworkManager per ARCHITECTURE.md. No graphical applet in the base image —
 Quickshell displays network state, and `nmtui` handles configuration.
@@ -138,7 +142,8 @@ usable text.
 - `wlogout` — logout is a Hyprland keybinding calling `hyprctl dispatch exit`.
   A dedicated package is not warranted.
 - `cliphist` GUI frontends — the fuzzel integration is a shell one-liner.
-- Bluetooth, printing, and any developer tooling — optional layers per ADR-0003.
+- Printing and any developer tooling — optional layers per ADR-0011.
+  (Bluetooth was listed here until ADR-0012 moved it into the base image.)
 - Icon or Nerd fonts — needed only once Quickshell styling wants glyph icons.
   Revisit during the branding milestone.
 

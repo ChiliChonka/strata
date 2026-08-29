@@ -33,13 +33,18 @@ hl.on("hyprland.start", function()
 
     -- Notification daemon. The Debian binary is `mako`; the package is
     -- mako-notifier (the `mako` source package builds python3-mako instead).
-    hl.exec_cmd("mako")
+    hl.exec_cmd("mako -c /etc/strata/theme/mako.conf")
 
     -- Privilege prompts (ADR-0009). Debian ships it in libexec, not bin.
     hl.exec_cmd("/usr/libexec/hyprpolkitagent")
 
     -- Idle and lock handling.
     hl.exec_cmd("hypridle")
+
+    -- Says something once if part of the above did not come up. Silent
+    -- otherwise. hypridle sat here dying instantly for weeks and nothing said
+    -- so; `strata doctor` reported it to nobody.
+    hl.exec_cmd("/usr/lib/strata/session-check")
 
     -- Clipboard history. On Wayland the clipboard is owned by the source
     -- client, so without this, copying and then closing an application loses
@@ -59,9 +64,44 @@ hl.env("HYPRCURSOR_SIZE", "24")
 -- rather than falling back to XCB through XWayland (ADR-0010).
 hl.env("QT_QPA_PLATFORM", "wayland;xcb")
 
+-- Where the desktop looks for .desktop files, icons and MIME defaults.
+--
+-- Unset, the specification says this defaults to /usr/local/share:/usr/share,
+-- and Flatpak's exports are in neither. The consequence is not subtle: an
+-- application installed from Flathub is invisible to xdg-open, to xdg-settings,
+-- and to the SUPER+D launcher — Brave installs successfully and then nothing on
+-- the system can open it, including tools that only ever call xdg-open.
+--
+-- Flatpak ships /etc/profile.d/flatpak.sh to set this, but a Wayland session
+-- started by greetd never sources profile.d, and the file does not exist at all
+-- until something pulls flatpak in. The paths are listed here whether or not
+-- they exist, which costs nothing and means installing a Flatpak application
+-- works in the session that is already running.
+-- Appended one at a time rather than built as a literal: a nil in the middle of
+-- a table constructor leaves a hole, and table.concat over a table with a hole
+-- is undefined.
+local data_dirs = {}
+local home = os.getenv("HOME")
+if home and home ~= "" then
+    data_dirs[#data_dirs + 1] = home .. "/.local/share/flatpak/exports/share"
+end
+data_dirs[#data_dirs + 1] = "/var/lib/flatpak/exports/share"
+data_dirs[#data_dirs + 1] = "/usr/local/share"
+data_dirs[#data_dirs + 1] = "/usr/share"
+hl.env("XDG_DATA_DIRS", table.concat(data_dirs, ":"))
+
 ----------------
 ---- LOOK   ----
 ----------------
+
+-- Window borders follow the active colour scheme, the same one the bar, the
+-- launcher, notifications and the terminal use. `strata theme set <name>`
+-- rewrites this file's source; nothing here needs editing to change colour.
+-- The fallback keeps the session usable if the theme has not been applied yet.
+local ok, strata_colors = pcall(dofile, "/etc/strata/theme/colors.lua")
+if not ok or type(strata_colors) ~= "table" then
+    strata_colors = { active = "rgba(7aa2f7ee)", inactive = "rgba(262c35aa)" }
+end
 
 hl.config({
     general = {
@@ -69,8 +109,8 @@ hl.config({
         gaps_out    = 8,
         border_size = 2,
         col = {
-            active_border   = { colors = { "rgba(6f7f8fee)" } },
-            inactive_border = { colors = { "rgba(2a2e33aa)" } },
+            active_border   = { colors = { strata_colors.active } },
+            inactive_border = { colors = { strata_colors.inactive } },
         },
         resize_on_border = true,
         layout           = "dwindle",
@@ -143,6 +183,16 @@ hl.bind(mainMod .. " + D",      hl.dsp.exec_cmd(menu))
 hl.bind(mainMod .. " + B",      hl.dsp.exec_cmd("sh -c 'browser || " .. terminal .. " -H sh -c \"browser; read -n1\"'"))
 hl.bind(mainMod .. " + Q",      hl.dsp.window.close())
 hl.bind(mainMod .. " + F",      hl.dsp.window.float({ action = "toggle" }))
+
+-- Two ways to fill the screen, because they are different things and both get
+-- asked for. "maximized" takes the whole workspace and leaves the bar visible;
+-- "fullscreen" covers everything, which is what a video or a game wants.
+--
+-- The two mode names are Hyprland's own: it rejects anything else with
+-- "invalid mode (expected fullscreen/maximized)", which is how they were
+-- established rather than guessed.
+hl.bind(mainMod .. " + M",         hl.dsp.window.fullscreen({ mode = "maximized" }))
+hl.bind(mainMod .. " + SHIFT + F", hl.dsp.window.fullscreen({ mode = "fullscreen" }))
 
 -- Log out of the session.
 hl.bind(mainMod .. " + SHIFT + E", hl.dsp.exit())

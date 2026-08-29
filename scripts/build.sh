@@ -97,6 +97,18 @@ lb config
 log "Checking the snapshot pin did not reach the installed sources.list"
 ./tests/check-no-snapshot-leak.sh
 
+# live-build feeds package lists through printf, so a per-cent sign anywhere in
+# one — a comment included — is read as a format directive. printf then stops,
+# and every line after it is dropped without a word. Four packages were declared
+# for a day and never installed because a comment said "63% the".
+log "Checking the package lists for characters printf will choke on"
+for _list in config/package-lists/*.list.chroot; do
+	[[ -e "$_list" ]] || continue
+	if grep -n '%' "$_list"; then
+		die "${_list} contains a per-cent sign (line above). live-build truncates the list there and installs nothing after it."
+	fi
+done
+
 log "lb build (this takes a while)"
 lb build
 
@@ -104,6 +116,20 @@ lb build
 # sources.list that an installed system actually inherits (ADR-0005).
 log "Re-checking the snapshot pin against the built image"
 ./tests/check-no-snapshot-leak.sh
+
+# The boot parameters decide whether a prepared USB stick has any writable
+# space at all. Without "persistence" live-boot never looks for the partition,
+# and the failure is silent: the system boots fine and simply forgets
+# everything. Assert it on the generated bootloader configs, where a lost flag
+# would otherwise only surface on someone's stick.
+log "Checking the live boot parameters"
+for cfg in binary/boot/grub/grub.cfg binary/isolinux/live.cfg; do
+	[[ -f "$cfg" ]] || die "expected bootloader config missing: $cfg"
+	# `.` and not a bracket expression: inside brackets, \n is the literal
+	# letter n, and "components" contains one — it could never match.
+	grep -q 'boot=live.*persistence' "$cfg" \
+		|| die "$cfg has no persistence in its live boot line — check auto/config, and check that no '#' comment was added inside the lb config call"
+done
 
 # --- Artifacts -------------------------------------------------------------
 

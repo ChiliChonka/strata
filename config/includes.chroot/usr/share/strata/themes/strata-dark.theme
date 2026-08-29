@@ -1,0 +1,30 @@
+# Strata Dark — the default colour scheme.
+#
+# The format is base16: sixteen slots with settled meanings, used by hundreds of
+# existing schemes. That is the point. Anyone who wants a different desktop can
+# drop a base16 scheme into ~/.local/share/strata/themes and every part of the
+# system follows — bar, menus, notifications, window borders, terminal — without
+# editing a single application's configuration.
+#
+# base00..07 run darkest to lightest. base08..0F are the hues.
+
+NAME="Strata Dark"
+VARIANT="dark"
+
+base00=16191d   # background — the bar, popouts, terminal, window gaps
+base01=1c2027   # raised surfaces: cards inside a popout
+base02=262c35   # hover and selection
+base03=4e5661   # disabled, dividers
+base04=8b939e   # secondary text
+base05=ced4dc   # primary text
+base06=e4e9ef   # emphasised text
+base07=f4f7fa   # brightest, used sparingly
+
+base08=c96a6a   # red     — errors, urgent notifications
+base09=d08c5a   # orange  — warnings that are not errors
+base0A=e0af68   # yellow  — attention
+base0B=7fb787   # green   — success, connected
+base0C=6fb2b8   # cyan
+base0D=7aa2f7   # blue    — the accent: focus, selection, active
+base0E=a684c4   # magenta
+base0F=8a6a5a   # brown

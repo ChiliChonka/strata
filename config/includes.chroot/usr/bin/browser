@@ -24,15 +24,43 @@ die() { printf '%s: %s\n' "$PROGRAM" "$*" >&2; exit 1; }
 # Desktop entries of browsers actually present, as xdg-settings names them.
 installed_browsers() {
 	local dir entry name
-	for dir in /usr/share/applications "$HOME/.local/share/applications"; do
+	# Flatpak exports its desktop files somewhere else entirely, and a browser
+	# installed from Flathub is invisible without these two paths — which is
+	# exactly what happened to Brave.
+	for dir in /usr/share/applications \
+	           "$HOME/.local/share/applications" \
+	           /var/lib/flatpak/exports/share/applications \
+	           "${XDG_DATA_HOME:-$HOME/.local/share}/flatpak/exports/share/applications"; do
 		[[ -d "$dir" ]] || continue
 		for entry in "$dir"/*.desktop; do
 			[[ -e "$entry" ]] || continue
 			grep -q '^Categories=.*WebBrowser' "$entry" 2>/dev/null || continue
+			# The category alone is not enough: KDE's bookmark editor claims
+			# WebBrowser and cannot open a URL. Something that actually browses
+			# registers itself as a handler for http.
+			grep -q '^MimeType=.*x-scheme-handler/http' "$entry" 2>/dev/null || continue
 			name="$(basename "$entry")"
+			# Strata's own launcher passes both tests — it is categorised as a
+			# browser and handles http — but it is a wrapper that runs this
+			# script. Setting it as the default would make `browser` call
+			# itself for ever.
+			[[ "$name" == "strata-browser.desktop" ]] && continue
 			printf '%s\n' "$name"
 		done
 	done | sort -u
+}
+
+# Where a .desktop name actually lives. The search order matters: a user's own
+# copy should win over the system one.
+find_desktop_entry() {
+	local name="$1" dir
+	for dir in "${XDG_DATA_HOME:-$HOME/.local/share}/applications" \
+	           "${XDG_DATA_HOME:-$HOME/.local/share}/flatpak/exports/share/applications" \
+	           /var/lib/flatpak/exports/share/applications \
+	           /usr/share/applications; do
+		[[ -f "${dir}/${name}" ]] && { printf '%s\n' "${dir}/${name}"; return 0; }
+	done
+	return 1
 }
 
 no_browser_help() {
@@ -89,7 +117,9 @@ cmd_set() {
 	# else using x-www-browser agree with xdg-settings rather than contradicting
 	# it. Best effort: it needs root, and not every browser registers one.
 	local exec_line binary
-	exec_line="$(grep -m1 '^Exec=' "/usr/share/applications/$match" 2>/dev/null || true)"
+	local entry_path
+	entry_path="$(find_desktop_entry "$match" || true)"
+	exec_line="$(grep -m1 '^Exec=' "$entry_path" 2>/dev/null || true)"
 	binary="$(printf '%s' "${exec_line#Exec=}" | awk '{print $1}')"
 	if [[ -n "$binary" ]] && command -v update-alternatives >/dev/null 2>&1; then
 		if [[ $EUID -eq 0 ]]; then
@@ -113,12 +143,32 @@ ${c_bold}$PROGRAM${c_off} — open or choose the default web browser
   $PROGRAM --list         installed browsers, marking the default
   $PROGRAM --set <name>   make one the default
 
-Opening delegates to Debian's sensible-browser, which honours \$BROWSER and the
-x-www-browser alternative. Install a browser with ${c_bold}strata install firefox${c_off}.
+Opening launches the default browser's desktop entry, which is the only thing
+that knows how to start a Flatpak application; without a recorded default it
+falls back to Debian's sensible-browser. Install one with
+${c_bold}strata install firefox${c_off}.
 USAGE
 		;;
 	*)
 		[[ -n "$(installed_browsers)" ]] || no_browser_help
+
+		# sensible-browser resolves $BROWSER and Debian's x-www-browser
+		# alternative. A Flatpak application registers neither — it has no
+		# binary path for update-alternatives to point at — so a Flathub
+		# browser is installed, is the recorded default, and still cannot be
+		# opened this way.
+		#
+		# The desktop entry is the thing that knows how to start it, whatever
+		# it is, so launch that when one is set. gio comes from
+		# libglib2.0-bin, already in the image for other reasons.
+		default_entry="$(xdg-settings get default-web-browser 2>/dev/null || true)"
+		if [[ -n "$default_entry" ]] && command -v gio >/dev/null 2>&1; then
+			entry_path="$(find_desktop_entry "$default_entry")"
+			if [[ -n "$entry_path" ]]; then
+				exec gio launch "$entry_path" "$@"
+			fi
+		fi
+
 		exec sensible-browser "$@"
 		;;
 esac

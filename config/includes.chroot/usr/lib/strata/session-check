@@ -1,0 +1,57 @@
+#!/bin/sh
+# Say something when part of the desktop did not come up.
+#
+# hypridle was autostarted and died instantly for weeks, and `strata doctor` had
+# been reporting it the whole time — to nobody. A diagnostic that has to be
+# asked never gets asked, so the desktop says it once, unprompted, and then
+# stays quiet.
+#
+# Rules it follows, all of them deliberate:
+#
+#   - Silent when everything is fine. No "all good" notification: one that
+#     always appears teaches people to dismiss it without reading, and then it
+#     is worth nothing on the day it says something else.
+#   - Once per session. Not a timer, not a nag.
+#   - Names what to do next, because "hypridle is not running" is only useful
+#     to someone who already knows what hypridle is.
+#
+# Sent with gdbus rather than notify-send: gdbus is in libglib2.0-bin, which the
+# image already has, and libnotify-bin would be a package added for one call.
+
+set -eu
+
+notify() {
+	gdbus call --session \
+		--dest org.freedesktop.Notifications \
+		--object-path /org/freedesktop/Notifications \
+		--method org.freedesktop.Notifications.Notify \
+		"Strata" 0 "dialog-warning" "$1" "$2" "[]" \
+		"{'urgency': <byte 2>}" 0 >/dev/null 2>&1 || true
+}
+
+# Give the compositor's autostart time to finish before judging it.
+sleep 25
+
+missing=""
+for p in quickshell mako hyprpolkitagent hypridle; do
+	pgrep -x "$p" >/dev/null 2>&1 || missing="${missing}${missing:+, }${p}"
+done
+
+failed="$(systemctl --failed --no-legend --plain 2>/dev/null | wc -l)"
+failed_user="$(systemctl --user --failed --no-legend --plain 2>/dev/null | wc -l)"
+
+body=""
+[ -n "$missing" ] && body="Not running: ${missing}"
+if [ "$failed" -gt 0 ] || [ "$failed_user" -gt 0 ]; then
+	body="${body}${body:+
+}Failed units: $((failed + failed_user))"
+fi
+
+[ -n "$body" ] || exit 0
+
+# Short on purpose: mako elides a body that does not fit, and the first
+# version of this ended in "for the det..." — the half that mattered.
+notify "Part of the desktop did not start" \
+	"${body}
+
+Details:  strata doctor"

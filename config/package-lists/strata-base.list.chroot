@@ -46,3 +46,29 @@ grub-efi-amd64-signed
 
 # Time synchronisation.
 systemd-timesyncd
+
+# Typography and icons, per ADR-0013. None of these has a dependency.
+#
+# The variable build of Inter is the same typeface as fonts-inter at a twelfth
+# of the size. The Material icon font resolves ligatures, so a bar element names
+# the icon it wants — "bluetooth" — instead of carrying a codepoint table.
+fonts-inter-variable
+fonts-jetbrains-mono
+fonts-material-design-icons-iconfont
+
+# Hardware capabilities ADR-0012 requires, selected in ADR-0014.
+#
+# upower is the one the battery bar element reads through Quickshell. It was
+# never installed, so on a laptop with a charged battery the element showed
+# nothing — the third case in this project of shipping a program and not the
+# thing it needs. Brightness, by contrast, needs no package: logind sets it.
+#
+# NOTE: no per-cent signs anywhere in this file, comments included. live-build
+# feeds these lines through printf, so a stray one is read as a format
+# directive, printf gives up, and every line after it is dropped without a
+# word. These four packages were declared for a day and never installed because
+# the comment above once read "at 63 per cent" with the sign instead.
+upower
+power-profiles-daemon
+bluez
+libspa-0.2-bluetooth

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The boot menu background.
+
+  Authored at 640x480; live-build renders it at that size for isolinux and at
+  800x600 for grub, so everything is placed proportionally.
+
+  Nothing is drawn below 45% of the height. GRUB's generated theme puts the
+  boot menu at top=52%, the progress bar at 100%-80 and a help line at 100%-50,
+  and it draws them over this image — the first version had its subtitle at
+  52.5% and the menu entries landed on top of the words.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480">
+  <rect width="640" height="480" fill="#16191d"/>
+
+  <!-- Strata: layers. The top one in the accent colour so the eye lands. -->
+  <g transform="translate(46 56)">
+    <rect x="0" y="0"  width="150" height="7" rx="3.5" fill="#7aa2f7"/>
+    <rect x="0" y="15" width="112" height="7" rx="3.5" fill="#4e5661"/>
+    <rect x="0" y="30" width="132" height="7" rx="3.5" fill="#3a414b"/>
+    <rect x="0" y="45" width="86"  height="7" rx="3.5" fill="#2b313a"/>
+  </g>
+
+  <text x="46" y="172" font-family="Inter Variable, Inter, DejaVu Sans, sans-serif"
+        font-size="60" font-weight="600" fill="#ced4dc" letter-spacing="-1.5">Strata</text>
+
+  <text x="48" y="203" font-family="Inter Variable, Inter, DejaVu Sans, sans-serif"
+        font-size="16" fill="#79818c">Debian Testing · Hyprland · Quickshell · Secure Boot</text>
+</svg>

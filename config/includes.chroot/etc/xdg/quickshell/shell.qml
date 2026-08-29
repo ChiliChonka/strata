@@ -17,6 +17,8 @@ import Quickshell.Services.UPower
 import Quickshell.Services.Pipewire
 import QtQuick
 import QtQuick.Layouts
+import "root:/"
+import "root:/elements" as Elements
 
 ShellRoot {
     id: root
@@ -71,13 +73,65 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
 
-        PanelWindow {
+        // Variants takes exactly one delegate, and modelData belongs to it, so
+        // the bar and its popout window are grouped rather than listed side by
+        // side. Scope is Quickshell's non-visual container for precisely this.
+        Scope {
+            // Addressed by id, not by `parent`: a window has no visual parent,
+            // so the delegate's screen has to be reachable by name.
+            id: perScreen
             required property var modelData
-            screen: modelData
+
+        PanelWindow {
+            id: bar
+            screen: perScreen.modelData
+
+            // Get out of the way of a fullscreen window.
+            //
+            // The bar is a layer-shell surface on the top layer, and Hyprland
+            // draws a fullscreen window *below* that layer — so without this
+            // the top of a fullscreen video sits behind the bar rather than
+            // over it. Hiding is right rather than moving to a lower layer,
+            // which would put the bar behind ordinary windows too.
+            //
+            // Per monitor, not globally: fullscreen on one screen should not
+            // blank the bar on another.
+            // The workspace's hasFullscreen is true for both states, so using it
+            // hid the bar when a window was merely maximized — which is the one
+            // state where the bar is supposed to stay. Hyprland numbers them on
+            // the window itself: 1 is maximized, 2 is fullscreen. Measured, not
+            // read: both values were watched changing on a real window.
+            readonly property var hlMonitor: Hyprland.monitorFor(perScreen.modelData)
+            readonly property bool wsFullscreen:
+                hlMonitor && hlMonitor.activeWorkspace
+                    ? hlMonitor.activeWorkspace.hasFullscreen
+                    : false
+
+            // hasFullscreen cannot tell the two apart, and activeToplevel is
+            // null in this Quickshell — measured on both the workspace and the
+            // singleton, before and after refreshToplevels(). So Hyprland is
+            // asked directly, but only when the state actually changes: the
+            // alternative was another timer, and this shell has enough of those.
+            property bool fullscreenHere: false
+            onWsFullscreenChanged: {
+                if (wsFullscreen) fsMode.running = true;
+                else fullscreenHere = false;
+            }
+
+            Process {
+                id: fsMode
+                command: ["sh", "-c",
+                    "hyprctl activewindow -j | grep -oE '\"fullscreen\": [0-9]+' | grep -oE '[0-9]+'"]
+                stdout: StdioCollector {
+                    onStreamFinished: bar.fullscreenHere = text.trim() === "2"
+                }
+            }
+
+            visible: !fullscreenHere
 
             anchors { top: true; left: true; right: true }
-            implicitHeight: 28
-            color: "#16191d"
+            implicitHeight: Theme.barHeight
+            color: Theme.bar
 
             RowLayout {
                 anchors.fill: parent
@@ -95,12 +149,13 @@ ShellRoot {
                             implicitWidth: 22
                             implicitHeight: 18
                             radius: 3
-                            color: modelData.active ? "#6f7f8f" : "#22262b"
+                            color: modelData.active ? Theme.accent : Theme.raised
                             Text {
                                 anchors.centerIn: parent
                                 text: modelData.name
-                                color: modelData.active ? "#ffffff" : "#8a9199"
-                                font.pixelSize: 11
+                                color: modelData.active ? Theme.bar : Theme.muted
+                                font.family: Theme.fontUi
+                    font.pixelSize: 11
                             }
                             MouseArea {
                                 anchors.fill: parent
@@ -115,28 +170,23 @@ ShellRoot {
                 // ---- Clock ------------------------------------------------
                 Text {
                     text: clock.date.toLocaleString(Qt.locale(), "ddd dd MMM  HH:mm")
-                    color: "#d7dbe0"
+                    color: Theme.text
+                    font.family: Theme.fontUi
                     font.pixelSize: 12
                     SystemClock { id: clock; precision: SystemClock.Minutes }
                 }
 
                 Item { Layout.fillWidth: true }
 
-                // ---- Volume -----------------------------------------------
-                Text {
-                    property var sink: Pipewire.defaultAudioSink
-                    color: "#d7dbe0"
-                    font.pixelSize: 12
-                    visible: sink !== null
-                    text: {
-                        if (!sink || !sink.audio) return "";
-                        if (sink.audio.muted) return "vol muted";
-                        return "vol " + Math.round(sink.audio.volume * 100) + "%";
-                    }
-
-                    // Without a binding the sink's properties are not tracked.
-                    PwObjectTracker { objects: [Pipewire.defaultAudioSink] }
-                }
+                // ---- The desktop's own controls ---------------------------
+                //
+                // ADR-0012's surface list, one file each under elements/. They
+                // are named here rather than scanned: these are the desktop, not
+                // optional extras, and a missing one should be a loud error.
+                Elements.Brightness {}
+                Elements.Audio {}
+                Elements.Battery {}
+                Elements.Network {}
 
                 // ---- Drop-in parts ----------------------------------------
                 //
@@ -156,19 +206,18 @@ ShellRoot {
                     }
                 }
 
-                // ---- Battery ----------------------------------------------
-                // Hidden on machines without one, which includes the QEMU
-                // smoke test and most desktops.
-                Text {
-                    property var battery: UPower.displayDevice
-                    color: "#d7dbe0"
-                    font.pixelSize: 12
-                    visible: battery && battery.isLaptopBattery && battery.isPresent
-                    text: visible
-                        ? "bat " + Math.round(battery.percentage * 100) + "%"
-                        : ""
-                }
+                Elements.Session {}
+
             }
+        }
+
+        // Drawn next to the bar rather than inside it: a layer-shell surface
+        // cannot escape its own window, and the panel has to hang below.
+        PopoutHost {
+            screen: perScreen.modelData
+            barWindow: bar
+        }
+
         }
     }
 }

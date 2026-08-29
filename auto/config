@@ -69,6 +69,18 @@ SNAPSHOT_SECURITY="https://snapshot.debian.org/archive/debian-security/${STRATA_
 LIVE_MIRROR="https://deb.debian.org/debian/"
 LIVE_SECURITY="https://security.debian.org/debian-security/"
 
+# --bootappend-live carries live-build's own default ("boot=live components
+# quiet splash") plus one addition: persistence.
+#
+# Without that word live-boot never looks for a writable partition, so every
+# install in a live session lands in a RAM overlay and is gone at reboot — and
+# the rest of a large USB stick sits unused behind the image. With it, live-boot
+# looks for a partition labelled "persistence" and unions it over the read-only
+# filesystem. If no such partition exists the boot proceeds exactly as before,
+# so this costs nothing on a stick that has not been prepared for it.
+#
+# scripts/write-usb.sh --persistent creates that partition.
+
 lb config noauto \
 	--distribution "${DEBIAN_CODENAME}" \
 	--archive-areas "main contrib non-free-firmware" \
@@ -84,6 +96,7 @@ lb config noauto \
 	--mirror-binary-security "${LIVE_SECURITY}" \
 	--bootloaders "syslinux,grub-efi" \
 	--uefi-secure-boot enable \
+	--bootappend-live "boot=live components quiet splash persistence" \
 	--debian-installer none \
 	--firmware-chroot true \
 	--firmware-binary true \
