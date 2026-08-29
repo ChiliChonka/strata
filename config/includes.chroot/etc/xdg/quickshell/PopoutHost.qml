@@ -98,20 +98,24 @@ PanelWindow {
         //
         // Scaled from the top edge, so the panel stays welded to the bar and
         // the shadow only spreads sideways and down.
+        // More layers, each fainter and closer together: four steps at a third
+        // opacity read as a hard edge with a halo, which is what a shadow looks
+        // like when it is really four stacked shapes. Eight at a tenth is still
+        // not a blur, but it stops announcing that it is faking one.
         Repeater {
-            model: 4
+            model: 8
             PopoutShape {
                 required property int index
                 anchors.fill: parent
                 joint: Theme.joint
                 radius: Theme.radius
                 bodyHeight: parent.height
-                fill: Qt.rgba(0, 0, 0, 0.34 - index * 0.07)
+                fill: Qt.rgba(0, 0, 0, 0.10 - index * 0.011)
                 transform: Scale {
                     origin.x: panel.width / 2
                     origin.y: 0
-                    xScale: 1 + (4 - index) * 0.010
-                    yScale: 1 + (4 - index) * 0.018
+                    xScale: 1 + (8 - index) * 0.0045
+                    yScale: 1 + (8 - index) * 0.008
                 }
             }
         }
@@ -140,7 +144,12 @@ PanelWindow {
     // all. The compositor is the only thing that sees a click on another
     // surface, and Hyprland exposes exactly that.
     HyprlandFocusGrab {
-        windows: [host]
+        // The bar belongs in this list too. A grab covering only the panel
+        // takes the pointer away from the bar, so hovering the next icon
+        // stopped doing anything and the open menu just sat there — the
+        // click-away fix broke the hover-to-switch behaviour it shipped
+        // alongside.
+        windows: [host, host.barWindow]
         active: host.shown
         onCleared: Popouts.close()
     }

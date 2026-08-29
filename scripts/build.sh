@@ -97,6 +97,18 @@ lb config
 log "Checking the snapshot pin did not reach the installed sources.list"
 ./tests/check-no-snapshot-leak.sh
 
+# live-build feeds package lists through printf, so a per-cent sign anywhere in
+# one — a comment included — is read as a format directive. printf then stops,
+# and every line after it is dropped without a word. Four packages were declared
+# for a day and never installed because a comment said "63% the".
+log "Checking the package lists for characters printf will choke on"
+for _list in config/package-lists/*.list.chroot; do
+	[[ -e "$_list" ]] || continue
+	if grep -n '%' "$_list"; then
+		die "${_list} contains a per-cent sign (line above). live-build truncates the list there and installs nothing after it."
+	fi
+done
+
 log "lb build (this takes a while)"
 lb build
 
