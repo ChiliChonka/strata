@@ -48,6 +48,8 @@ Singleton {
     // ---- Motion -----------------------------------------------------------
     // Short enough not to be in the way, long enough to read as one surface
     // moving rather than a window appearing.
+    readonly property color shadow:   "#000000"
+
     readonly property int duration:    180
     readonly property var easing:      Easing.OutCubic
 }

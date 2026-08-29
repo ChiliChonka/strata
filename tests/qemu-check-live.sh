@@ -200,6 +200,10 @@ check "hostname is strata"          "cat /etc/hostname"                         
 check "boot menu is titled Strata"  "grep '^menu title' /run/live/medium/isolinux/menu.cfg"  "Strata"
 check "boot entries are named"      "grep 'menu label' /run/live/medium/isolinux/live.cfg"    "Strata"
 check "our splash was rendered"     "test -s /run/live/medium/isolinux/splash.png && echo yes" "yes"
+# The UEFI entries come from string literals inside live-build, not a template,
+# so they are renamed after generation. If live-build changes that wording the
+# hook stops matching, and this is what notices.
+check "UEFI entries are named"      "grep '^menuentry' /run/live/medium/boot/grub/grub.cfg | head -1" "Strata"
 check "apt uses the live archive"   "grep -v ^# /etc/apt/sources.list"           "deb.debian.org"
 check "no snapshot mirror"          "grep -c snapshot.debian.org /etc/apt/sources.list || true" "0"
 check "Secure Boot is enabled"      "mokutil --sb-state"                         "SecureBoot enabled"

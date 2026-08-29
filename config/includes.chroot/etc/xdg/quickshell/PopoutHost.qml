@@ -11,6 +11,7 @@
 // a piece carved out of it rather than two rectangles that happen to touch.
 //
 import Quickshell
+import Quickshell.Hyprland
 import QtQuick
 import QtQuick.Shapes
 import "root:/"
@@ -88,50 +89,37 @@ PanelWindow {
         opacity: host.reveal
         transform: Translate { y: (1 - host.reveal) * -8 }
 
-        Shape {
-            // Referenced by id below: PathArc and PathLine are not visual
-            // items, so `parent` does not resolve inside a ShapePath.
-            id: shape
-            anchors.fill: parent
-            preferredRendererType: Shape.CurveRenderer
-
-            readonly property int j: Theme.joint
-            readonly property int r: Theme.radius
-            readonly property real h: parent.height
-
-            ShapePath {
-                fillColor: Theme.surface
-                strokeWidth: 0
-                startX: 0
-                startY: 0
-                // Clockwise, not counter: with the same radius and the same two
-                // endpoints there are two possible circles, and the other one
-                // bulges outward into an ear instead of cutting the corner in.
-                PathArc {
-                    x: shape.j; y: shape.j
-                    radiusX: shape.j; radiusY: shape.j
-                    direction: PathArc.Clockwise
+        // The shadow: three copies of the same outline behind the real one,
+        // each a little larger and fainter. There is no blur — the image ships
+        // no effects module — but three steps is enough to lift the panel off
+        // the wallpaper, which is what it was missing.
+        //
+        // Scaled from the top edge, so the panel stays welded to the bar and
+        // the shadow only spreads sideways and down.
+        Repeater {
+            model: 4
+            PopoutShape {
+                required property int index
+                anchors.fill: parent
+                joint: Theme.joint
+                radius: Theme.radius
+                bodyHeight: parent.height
+                fill: Qt.rgba(0, 0, 0, 0.34 - index * 0.07)
+                transform: Scale {
+                    origin.x: panel.width / 2
+                    origin.y: 0
+                    xScale: 1 + (4 - index) * 0.010
+                    yScale: 1 + (4 - index) * 0.018
                 }
-                PathLine { x: shape.j; y: shape.h - shape.r }
-                PathArc {
-                    x: shape.j + shape.r; y: shape.h
-                    radiusX: shape.r; radiusY: shape.r
-                    direction: PathArc.Counterclockwise
-                }
-                PathLine { x: shape.width - shape.j - shape.r; y: shape.h }
-                PathArc {
-                    x: shape.width - shape.j; y: shape.h - shape.r
-                    radiusX: shape.r; radiusY: shape.r
-                    direction: PathArc.Counterclockwise
-                }
-                PathLine { x: shape.width - shape.j; y: shape.j }
-                PathArc {
-                    x: shape.width; y: 0
-                    radiusX: shape.j; radiusY: shape.j
-                    direction: PathArc.Clockwise
-                }
-                PathLine { x: 0; y: 0 }
             }
+        }
+
+        PopoutShape {
+            anchors.fill: parent
+            joint: Theme.joint
+            radius: Theme.radius
+            bodyHeight: parent.height
+            fill: Theme.surface
         }
 
         Loader {
@@ -143,13 +131,15 @@ PanelWindow {
         }
     }
 
-    // Clicking anywhere else in this window closes it. The window covers the
-    // strip under the bar, so this catches the common "click away" without
-    // grabbing input from the whole screen.
-    MouseArea {
-        anchors.fill: parent
-        z: -1
-        enabled: host.shown
-        onClicked: Popouts.close()
+    // Clicking anywhere else closes it.
+    //
+    // A MouseArea in this window could only see clicks inside this window, so
+    // clicking a terminal — the normal way to dismiss a menu — did nothing at
+    // all. The compositor is the only thing that sees a click on another
+    // surface, and Hyprland exposes exactly that.
+    HyprlandFocusGrab {
+        windows: [host]
+        active: host.shown
+        onCleared: Popouts.close()
     }
 }
