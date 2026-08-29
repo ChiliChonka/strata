@@ -427,6 +427,11 @@ check "bluetooth tooling is there"  "command -v bluetoothctl"                   
 # measured twice, in two sessions. If that ever changes the element keeps
 # working; if the event name changes it stops, and this notices.
 check "the window list is wired"    "grep -c 'onRawEvent' /etc/xdg/quickshell/elements/Windows.qml" "1"
+# Twice in one day an element used Process without importing Quickshell.Io,
+# which is not a warning — the type fails to resolve and the whole bar refuses
+# to load. Cheap to check, and it names the file instead of leaving a stack of
+# failed runtime assertions to work backwards from.
+check "every Process has its import" "for f in /etc/xdg/quickshell/elements/*.qml; do grep -q 'Process[[:space:]]*{' \$f && ! grep -q '^import Quickshell.Io' \$f && echo \$f; done; echo ok" "ok"
 check "no QML errors in the shell"  "cat \"\$XDG_RUNTIME_DIR\"/hypr/*/hyprland.log 2>/dev/null | grep -ci 'ERROR.*\\.qml' || true" "0"
 check "the bar still has a clock"   "pgrep -cx quickshell"                       "1"
 # Lock is the one session action that silently does nothing if its binary is

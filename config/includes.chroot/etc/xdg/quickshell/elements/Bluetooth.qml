@@ -19,6 +19,7 @@
 // that sent the user to a terminal they did not want to learn.
 //
 import Quickshell
+import Quickshell.Io
 import Quickshell.Bluetooth
 import QtQuick
 import "root:/"
