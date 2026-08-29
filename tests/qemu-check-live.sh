@@ -300,7 +300,12 @@ sleep 3
 # and Quickshell said why in its log at every single login. Both halves are
 # asserted: that the service can be activated at all, and that the shell did not
 # complain about it.
-check "upower can be activated"     "ls /usr/share/dbus-1/system-services/ | grep -c UPower || true" "1"
+# Asked of the bus, not of a directory listing: counting files named *UPower*
+# expected exactly one and got two, because power-profiles-daemon ships
+# org.freedesktop.UPower.PowerProfiles.service and arrived in the same commit.
+# Whether the name can be reached is the question; how many files mention it is
+# not.
+check "upower can be activated"     "busctl --system introspect org.freedesktop.UPower /org/freedesktop/UPower 2>&1 | head -1" "NAME"
 check "the shell reached upower"    "cat \"\$XDG_RUNTIME_DIR\"/quickshell/by-id/*/log.log 2>/dev/null | tr -d '\\0' | grep -ci 'Could not launch service org.freedesktop.UPower' || true" "0"
 
 check "the session reports a failure" "E=\$(tr '\\0' '\\n' < /proc/\$(pgrep -x quickshell)/environ | grep -E '^(DBUS_SESSION_BUS_ADDRESS|XDG_RUNTIME_DIR)='); sudo -u user env \$E makoctl list" "Part of the desktop did not start"
