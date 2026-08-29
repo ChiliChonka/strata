@@ -122,6 +122,42 @@ send({"execute": "input-send-event", "arguments": {"events": [
 PYEOF
 }
 
+drag() {  # $1..$4 = x1 y1 x2 y2 — press, move, release
+	# A region screenshot cannot be tested without this: slurp draws nothing
+	# until something is being dragged, so a click alone proves only that it
+	# started.
+	python3 - "$wd/qmp.sock" "$1" "$2" "$3" "$4" <<'PYEOF'
+import json, socket, sys, time
+sock = sys.argv[1]
+x1, y1, x2, y2 = (int(v) for v in sys.argv[2:6])
+W, H = 1280, 800
+s = socket.socket(socket.AF_UNIX); s.settimeout(10); s.connect(sock)
+f = s.makefile("rw"); f.readline()
+def send(cmd):
+    f.write(json.dumps(cmd) + "\n"); f.flush()
+    while True:
+        r = json.loads(f.readline())
+        if "return" in r or "error" in r:
+            return r
+def at(x, y):
+    send({"execute": "input-send-event", "arguments": {"events": [
+        {"type": "abs", "data": {"axis": "x", "value": x * 32767 // W}},
+        {"type": "abs", "data": {"axis": "y", "value": y * 32767 // H}}]}})
+def button(down):
+    send({"execute": "input-send-event", "arguments": {"events": [
+        {"type": "btn", "data": {"down": down, "button": "left"}}]}})
+send({"execute": "qmp_capabilities"})
+at(x1, y1); time.sleep(0.2)
+button(True); time.sleep(0.2)
+# Several steps: a single jump can be read as a click that happened to move.
+for i in range(1, 9):
+    at(x1 + (x2 - x1) * i // 8, y1 + (y2 - y1) * i // 8)
+    time.sleep(0.05)
+time.sleep(0.2)
+button(False)
+PYEOF
+}
+
 click() {  # $1 = x, $2 = y, $3 = left|right — a real click, through QEMU's
 	# input layer. Hover states and popups cannot be asserted any other way:
 	# nothing in the guest can be asked "is the menu open".
@@ -178,7 +214,11 @@ if [[ $# -gt 0 ]]; then
 		IFS=';' read -ra clicks <<<"$STRATA_CLICK"
 		for c in "${clicks[@]}"; do
 			IFS=, read -r cx cy cb <<<"$c"
-			if [[ "${cb:-left}" == "hover" ]]; then
+			if [[ "${cb:-left}" == "drag" ]]; then
+				# x,y,drag,x2,y2 — the end point rides along in the same entry
+				IFS=, read -r _ _ _ dx dy <<<"$c"
+				drag "$cx" "$cy" "$dx" "$dy"
+			elif [[ "${cb:-left}" == "hover" ]]; then
 				# Move without pressing. Hover-to-switch between bar menus
 				# cannot be tested any other way, and it broke once already
 				# without anyone noticing until it was used by hand.
