@@ -184,6 +184,16 @@ hl.bind(mainMod .. " + B",      hl.dsp.exec_cmd("sh -c 'browser || " .. terminal
 hl.bind(mainMod .. " + Q",      hl.dsp.window.close())
 hl.bind(mainMod .. " + F",      hl.dsp.window.float({ action = "toggle" }))
 
+-- Two ways to fill the screen, because they are different things and both get
+-- asked for. "maximized" takes the whole workspace and leaves the bar visible;
+-- "fullscreen" covers everything, which is what a video or a game wants.
+--
+-- The two mode names are Hyprland's own: it rejects anything else with
+-- "invalid mode (expected fullscreen/maximized)", which is how they were
+-- established rather than guessed.
+hl.bind(mainMod .. " + M",         hl.dsp.window.fullscreen({ mode = "maximized" }))
+hl.bind(mainMod .. " + SHIFT + F", hl.dsp.window.fullscreen({ mode = "fullscreen" }))
+
 -- Log out of the session.
 hl.bind(mainMod .. " + SHIFT + E", hl.dsp.exit())
 

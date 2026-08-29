@@ -44,7 +44,9 @@ PanelWindow {
         return p.x + item.width / 2;
     }
 
-    visible: shown || reveal > 0.01
+    // Hidden along with the bar: a panel hanging off a bar that is not there
+    // would float in the middle of a fullscreen window.
+    visible: (shown || reveal > 0.01) && !barWindow.fullscreenHere
 
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore

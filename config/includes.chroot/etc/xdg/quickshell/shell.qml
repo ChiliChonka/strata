@@ -86,6 +86,49 @@ ShellRoot {
             id: bar
             screen: perScreen.modelData
 
+            // Get out of the way of a fullscreen window.
+            //
+            // The bar is a layer-shell surface on the top layer, and Hyprland
+            // draws a fullscreen window *below* that layer — so without this
+            // the top of a fullscreen video sits behind the bar rather than
+            // over it. Hiding is right rather than moving to a lower layer,
+            // which would put the bar behind ordinary windows too.
+            //
+            // Per monitor, not globally: fullscreen on one screen should not
+            // blank the bar on another.
+            // The workspace's hasFullscreen is true for both states, so using it
+            // hid the bar when a window was merely maximized — which is the one
+            // state where the bar is supposed to stay. Hyprland numbers them on
+            // the window itself: 1 is maximized, 2 is fullscreen. Measured, not
+            // read: both values were watched changing on a real window.
+            readonly property var hlMonitor: Hyprland.monitorFor(perScreen.modelData)
+            readonly property bool wsFullscreen:
+                hlMonitor && hlMonitor.activeWorkspace
+                    ? hlMonitor.activeWorkspace.hasFullscreen
+                    : false
+
+            // hasFullscreen cannot tell the two apart, and activeToplevel is
+            // null in this Quickshell — measured on both the workspace and the
+            // singleton, before and after refreshToplevels(). So Hyprland is
+            // asked directly, but only when the state actually changes: the
+            // alternative was another timer, and this shell has enough of those.
+            property bool fullscreenHere: false
+            onWsFullscreenChanged: {
+                if (wsFullscreen) fsMode.running = true;
+                else fullscreenHere = false;
+            }
+
+            Process {
+                id: fsMode
+                command: ["sh", "-c",
+                    "hyprctl activewindow -j | grep -oE '\"fullscreen\": [0-9]+' | grep -oE '[0-9]+'"]
+                stdout: StdioCollector {
+                    onStreamFinished: bar.fullscreenHere = text.trim() === "2"
+                }
+            }
+
+            visible: !fullscreenHere
+
             anchors { top: true; left: true; right: true }
             implicitHeight: Theme.barHeight
             color: Theme.bar
