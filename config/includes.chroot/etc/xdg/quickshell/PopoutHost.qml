@@ -98,24 +98,29 @@ PanelWindow {
         //
         // Scaled from the top edge, so the panel stays welded to the bar and
         // the shadow only spreads sideways and down.
-        // More layers, each fainter and closer together: four steps at a third
-        // opacity read as a hard edge with a halo, which is what a shadow looks
-        // like when it is really four stacked shapes. Eight at a tenth is still
-        // not a blur, but it stops announcing that it is faking one.
+        // Twelve layers at a twentieth each, spaced closely.
+        //
+        // This is stacked copies of the outline, not a blur — there is no
+        // effects module in the image — so the only way to stop it looking
+        // stacked is to make each step too faint to see on its own. Four at a
+        // third was a hard edge; eight at a tenth still read as steps; twelve
+        // at a twentieth is a ramp. The alpha falls off with the square of the
+        // distance, which is roughly how a real shadow behaves.
         Repeater {
-            model: 8
+            model: 12
             PopoutShape {
                 required property int index
+                readonly property real k: (12 - index) / 12
                 anchors.fill: parent
                 joint: Theme.joint
                 radius: Theme.radius
                 bodyHeight: parent.height
-                fill: Qt.rgba(0, 0, 0, 0.10 - index * 0.011)
+                fill: Qt.rgba(0, 0, 0, 0.05 * k * k)
                 transform: Scale {
                     origin.x: panel.width / 2
                     origin.y: 0
-                    xScale: 1 + (8 - index) * 0.0045
-                    yScale: 1 + (8 - index) * 0.008
+                    xScale: 1 + (12 - index) * 0.0035
+                    yScale: 1 + (12 - index) * 0.0060
                 }
             }
         }

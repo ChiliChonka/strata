@@ -334,7 +334,13 @@ check "browser explains itself"     "browser 2>&1 || true"                      
 # config — so the compositor's own environ never shows it however well it works.
 # What matters is what the session's programs inherit, and quickshell is one.
 check "session sees flatpak exports" "tr '\\0' '\\n' < /proc/\$(pgrep -x quickshell)/environ | grep XDG_DATA_DIRS" "/var/lib/flatpak/exports/share"
+# Both come from libglib2.0-bin. The live image had it as a dependency of
+# something else and an installed system did not, so `browser` silently fell
+# back to sensible-browser — which cannot start a Flatpak — and the session's
+# health notification had nothing to send with. Neither said anything.
 check "gio is available to launch"  "command -v gio"                             "/usr/bin/gio"
+check "gdbus is available to warn"  "command -v gdbus"                           "/usr/bin/gdbus"
+check "browser can work without gio" "grep -c 'exec \$exec_line' /usr/bin/browser" "1"
 
 # The bar grows with what is installed and stays minimal when nothing is
 # (ADR-0003, ADR-0011). Both halves need asserting: that the drop-in directory

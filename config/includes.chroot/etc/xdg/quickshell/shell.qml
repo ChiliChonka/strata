@@ -130,8 +130,36 @@ ShellRoot {
             visible: !fullscreenHere
 
             anchors { top: true; left: true; right: true }
-            implicitHeight: Theme.barHeight
-            color: Theme.bar
+
+            // The window is taller than the bar so there is somewhere to draw a
+            // shadow. Without this the surface ended exactly at the bar's edge
+            // and nothing could fall below it.
+            //
+            // The exclusive zone stays the bar's own height: the shadow is
+            // drawn over whatever is underneath and must not push windows down
+            // by another ten pixels.
+            implicitHeight: Theme.barHeight + Theme.shadowDrop
+            exclusiveZone: Theme.barHeight
+            color: "transparent"
+
+            Rectangle {
+                id: barSurface
+                anchors { top: parent.top; left: parent.left; right: parent.right }
+                height: Theme.barHeight
+                color: Theme.bar
+            }
+
+            // A gradient rather than stacked copies: this edge is straight, so
+            // it needs no shape and can be a real fade.
+            Rectangle {
+                anchors { top: barSurface.bottom; left: parent.left; right: parent.right }
+                height: Theme.shadowDrop
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.28) }
+                    GradientStop { position: 0.45; color: Qt.rgba(0, 0, 0, 0.10) }
+                    GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.0) }
+                }
+            }
 
             // Anchored to the middle of the window, not placed in the row.
             //
@@ -143,11 +171,11 @@ ShellRoot {
             // prevents that; the alternative is a clock that is never quite in
             // the middle.
             Elements.Clock {
-                anchors.centerIn: parent
+                anchors.centerIn: barSurface
             }
 
             RowLayout {
-                anchors.fill: parent
+                anchors.fill: barSurface
                 anchors.leftMargin: 8
                 anchors.rightMargin: 8
                 spacing: 12

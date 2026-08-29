@@ -162,10 +162,42 @@ USAGE
 		# it is, so launch that when one is set. gio comes from
 		# libglib2.0-bin, already in the image for other reasons.
 		default_entry="$(xdg-settings get default-web-browser 2>/dev/null || true)"
-		if [[ -n "$default_entry" ]] && command -v gio >/dev/null 2>&1; then
-			entry_path="$(find_desktop_entry "$default_entry")"
-			if [[ -n "$entry_path" ]]; then
+		entry_path=""
+		[[ -n "$default_entry" ]] && entry_path="$(find_desktop_entry "$default_entry" || true)"
+
+		if [[ -n "$entry_path" ]]; then
+			# gio understands a desktop entry properly, including the field
+			# codes, so it is preferred where it exists.
+			if command -v gio >/dev/null 2>&1; then
 				exec gio launch "$entry_path" "$@"
+			fi
+
+			# Without it, run the Exec line directly. This used to be guarded
+			# behind gio alone, and on an installed system — where
+			# libglib2.0-bin is not pulled in by anything — that guard sent
+			# every launch to sensible-browser, which cannot start a Flatpak
+			# application at all. Reported as "browser stopped working after
+			# installing brave".
+			#
+			# The field codes are placeholders for arguments the caller
+			# supplies; %U and %u take URLs, the rest are for files and icons
+			# and are dropped rather than passed through as literal text.
+			exec_line="$(grep -m1 '^Exec=' "$entry_path" 2>/dev/null)"
+			exec_line="${exec_line#Exec=}"
+			exec_line="${exec_line//%U/}"; exec_line="${exec_line//%u/}"
+			exec_line="${exec_line//%F/}"; exec_line="${exec_line//%f/}"
+			exec_line="${exec_line//%i/}"; exec_line="${exec_line//%c/}"
+			exec_line="${exec_line//%k/}"
+			# Flatpak wraps the field codes in its own file-forwarding markers:
+			#   flatpak run ... com.brave.Browser @@u %U @@
+			# With the code removed the markers delimit nothing, so they go too
+			# rather than reaching flatpak as stray arguments.
+			exec_line="${exec_line//@@u/}"; exec_line="${exec_line//@@U/}"
+			exec_line="${exec_line//@@/}"
+			if [[ -n "${exec_line// /}" ]]; then
+				# shellcheck disable=SC2086  # the Exec line is a command with
+				# its own arguments and has to be split on spaces
+				exec $exec_line "$@"
 			fi
 		fi
 

@@ -72,3 +72,14 @@ upower
 power-profiles-daemon
 bluez
 libspa-0.2-bluetooth
+
+# gio and gdbus, both from here.
+#
+# The live image had this as a dependency of something else, so `browser`
+# launched Flatpak applications and the session's health notification could be
+# sent. An installed system does not: whatever pulled it in is not there, and
+# both features stopped without a word — the browser fell back to
+# sensible-browser, which cannot start a Flatpak, and session-check had nothing
+# to send with. Declared here so it is installed because Strata wants it, not
+# because something else happened to.
+libglib2.0-bin
