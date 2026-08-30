@@ -68,6 +68,14 @@ hl.env("HYPRCURSOR_SIZE", "24")
 -- rather than falling back to XCB through XWayland (ADR-0010).
 hl.env("QT_QPA_PLATFORM", "wayland;xcb")
 
+-- Qt applications take their colours from GTK's settings.
+--
+-- qt6-gtk-platformtheme is already in the image, so this needs no package: with
+-- it, Qt reads the same settings.ini that GTK does and a Qt window stops being
+-- the one light rectangle on a dark desktop. Calamares is the one that matters
+-- — it is the first Qt application anyone sees, and it ran unthemed until now.
+hl.env("QT_QPA_PLATFORMTHEME", "gtk3")
+
 -- Where the desktop looks for .desktop files, icons and MIME defaults.
 --
 -- Unset, the specification says this defaults to /usr/local/share:/usr/share,

@@ -261,6 +261,18 @@ cmd_theme() {
 			sudo mkdir -p /etc/strata/theme
 			sudo ln -sfn "$f" /etc/strata/theme/active.theme
 			sudo /usr/lib/strata/apply-theme
+
+			# gtk.css has no system-wide location — GTK reads it only from
+			# XDG_CONFIG_HOME — so the generated copy in /etc/skel reaches new
+			# accounts and this reaches the one switching themes right now.
+			local gtk_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+			local v
+			for v in 3 4; do
+				if [[ -f "/etc/skel/.config/gtk-${v}.0/gtk.css" ]]; then
+					mkdir -p "${gtk_home}/gtk-${v}.0"
+					cp "/etc/skel/.config/gtk-${v}.0/gtk.css" "${gtk_home}/gtk-${v}.0/gtk.css"
+				fi
+			done
 			# Everything else rereads its configuration on the next start; these
 			# two are running now and would otherwise keep the old colours.
 			#

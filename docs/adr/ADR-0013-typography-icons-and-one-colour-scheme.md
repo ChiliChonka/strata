@@ -99,9 +99,15 @@ part written by a user says `Theme.accent`, never a hex value.
   confusing. Accepted because fuzzel offers no include; revisit if it gains one.
 - A scheme is sourced as shell. `apply-theme` refuses any line that is not a
   plain assignment, which is a check, not a sandbox.
-- Qt and GTK applications do not follow this scheme. They read their own theme
-  settings, and making them agree is a separate problem this record does not
-  solve.
+- Qt and GTK applications follow the scheme only as far as light or dark.
+  `/etc/xdg/gtk-3.0/settings.ini` is read from XDG_CONFIG_DIRS and reaches every
+  user, and `qt6-gtk-platformtheme` makes Qt read the same file, so both stop
+  being bright rectangles on a dark desktop. The palette itself does not reach
+  them: measured in Thunar, the window body is (45,45,45) where the scheme says
+  (22,25,29). GTK3's Adwaita compiles its colours and a user `@define-color`
+  only reaches rules that still look those names up. Closing that would mean
+  shipping and maintaining a GTK stylesheet, which is the desktop-environment
+  work ADR-0004 exists to refuse.
 
 ## Guiding Principle
 

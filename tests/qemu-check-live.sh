@@ -324,6 +324,21 @@ check "the idle daemon runs"        "pgrep -cx hypridle"                        
 # hyprpaper was in the image from the start, never started and never given a
 # wallpaper — the third program shipped without the one thing it needs.
 check "the wallpaper daemon runs"   "pgrep -cx hyprpaper"                        "1"
+# GTK and Qt applications used to ignore the colour scheme entirely — recorded
+# as a known gap in ADR-0013. settings.ini is read from XDG_CONFIG_DIRS, so one
+# system-wide file reaches every user; gtk.css is not, which is why it goes to
+# /etc/skel instead.
+check "gtk is told to be dark"      "grep -h prefer-dark /etc/xdg/gtk-3.0/settings.ini" "=true"
+# Asserts that the file carries the scheme's accent, and nothing more than that.
+#
+# It does not assert that GTK uses it, because GTK3 does not. Measured in a
+# running Thunar: window body (45,45,45) where the scheme says (22,25,29), and
+# a selection of (21,83,158) where the accent is (122,162,247). Adwaita compiles
+# its palette now, and a user @define-color only reaches rules that still look
+# those names up — most no longer do. The file stays because GTK4 and libadwaita
+# do honour accent_color, and costs nothing where it is ignored.
+check "gtk colours come from theme" "grep accent_color /etc/skel/.config/gtk-3.0/gtk.css" "#7aa2f7"
+check "qt follows gtk"              "tr '\\0' '\\n' < /proc/\$(pgrep -x quickshell)/environ | grep QT_QPA_PLATFORMTHEME" "gtk3"
 check "it has a wallpaper to show"  "test -s /usr/share/backgrounds/strata/strata.png && echo yes" "yes"
 check "it has a configuration"      "test -f /etc/xdg/hypr/hypridle.conf && echo yes" "yes"
 # hyprlock refuses to start without one too, so the session menu's Lock entry
