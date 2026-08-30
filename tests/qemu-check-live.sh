@@ -470,7 +470,28 @@ check "the window list is wired"    "grep -c 'onRawEvent' /etc/xdg/quickshell/el
 # argument in hl.dispatch(...) and the Lua config evaluates it, so "focuswindow
 # address:0x…" is a syntax error, not a dispatcher. The failure went to a log
 # nobody reads. Asserted by dispatching for real and looking at the answer.
-check "focusing a window works"     "hyprctl dispatch \"hl.dsp.focus({ window = \\\"address:\$(hyprctl clients -j | grep -m1 address | grep -oE '0x[0-9a-f]+')\\\" })\" 2>&1" "ok"
+# Needs two things this check did not have at first: Hyprland's instance
+# signature, which is not in the agent's environment, and a window to focus,
+# which a fresh session does not have. Without the signature hyprctl answers
+# "is hyprland running?", which reads exactly like a broken dispatcher.
+#
+# Written to a file and then run, rather than passed inline: the dispatcher call
+# contains nested quotes, and threading them through the agent produced a
+# command that failed for its own reasons twice.
+qga "cat > /tmp/focus-probe.sh <<'PROBE'
+export XDG_RUNTIME_DIR=/run/user/1000
+H=\$(basename \$(ls -d \$XDG_RUNTIME_DIR/hypr/*/ | head -1))
+export HYPRLAND_INSTANCE_SIGNATURE=\$H
+sudo -u user env XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-1 \
+  HOME=/home/user HYPRLAND_INSTANCE_SIGNATURE=\$H setsid foot >/dev/null 2>&1 &
+sleep 3
+A=\$(hyprctl clients -j 2>/dev/null | grep -m1 address | grep -oE '0x[0-9a-f]+')
+hyprctl dispatch \"hl.dsp.focus({ window = \\\"address:\$A\\\" })\" > /tmp/focus.txt 2>&1
+PROBE
+sh /tmp/focus-probe.sh" >/dev/null
+sleep 1
+
+check "focusing a window works"     "cat /tmp/focus.txt"                         "ok"
 # Twice in one day an element used Process without importing Quickshell.Io,
 # which is not a warning — the type fails to resolve and the whole bar refuses
 # to load. Cheap to check, and it names the file instead of leaving a stack of
