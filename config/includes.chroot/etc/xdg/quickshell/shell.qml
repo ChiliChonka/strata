@@ -6,9 +6,11 @@
 // ~/.config/quickshell/shell.qml replaces it entirely — theirs is found first.
 // Nothing in the image edits a user's copy.
 //
-// AGENTS.md limits the MVP shell to useful essentials: workspaces, clock,
-// network, volume, battery. Building a widget suite is explicitly out of scope,
-// so this is a single bar and nothing else.
+// AGENTS.md limited the MVP shell to workspaces, clock, network, volume and
+// battery. ADR-0012 replaced that scope: the desktop must be able to do what a
+// desktop does, so the bar also carries brightness, bluetooth, screenshots and
+// session actions, and the shell owns the wallpaper as well. What stays out of
+// scope is a widget suite — extras arrive as drop-in parts, below.
 //
 import Quickshell
 import Quickshell.Hyprland
@@ -81,6 +83,9 @@ ShellRoot {
             // so the delegate's screen has to be reachable by name.
             id: perScreen
             required property var modelData
+
+        // Below everything, including the bar's own window.
+        Wallpaper { screen: perScreen.modelData }
 
         PanelWindow {
             id: bar

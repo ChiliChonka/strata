@@ -321,9 +321,16 @@ check "the polkit agent runs"       "pgrep -cx hyprpolkitagent"                 
 # checks asked about mako and the polkit agent and never about this, so idle
 # handling was broken in every image and no test noticed.
 check "the idle daemon runs"        "pgrep -cx hypridle"                         "1"
-# hyprpaper was in the image from the start, never started and never given a
-# wallpaper — the third program shipped without the one thing it needs.
-check "the wallpaper daemon runs"   "pgrep -cx hyprpaper"                        "1"
+# The desktop was a flat colour for the whole life of the project. hyprpaper was
+# in the image from the start and never started; once started it turned out it
+# cannot draw here at all (ADR-0009), so Quickshell paints the background.
+#
+# The surface is asked about by name rather than by sampling pixels: a wallpaper
+# that fails to load still leaves a correctly-coloured window, and this must fail
+# when the layer is missing, not when the picture is dull.
+check "the wallpaper layer exists" \
+	"env \$(tr '\\0' '\\n' < /proc/\$(pgrep -x quickshell)/environ | grep -E '^(HYPRLAND_INSTANCE_SIGNATURE|XDG_RUNTIME_DIR)=') hyprctl layers | grep -c strata-wallpaper" \
+	"1"
 # GTK and Qt applications used to ignore the colour scheme entirely — recorded
 # as a known gap in ADR-0013. settings.ini is read from XDG_CONFIG_DIRS, so one
 # system-wide file reaches every user; gtk.css is not, which is why it goes to
@@ -507,6 +514,25 @@ sh /tmp/focus-probe.sh" >/dev/null
 sleep 1
 
 check "focusing a window works"     "cat /tmp/focus.txt"                         "ok"
+
+# A window must open below the bar, which reserves its own height. The user
+# reported a maximized window vanishing underneath it, and nothing here asked.
+#
+# It belongs next to the wallpaper, because the wallpaper is the one surface that
+# is *supposed* to ignore that reservation. Getting the two confused puts every
+# window under the bar, or leaves the wallpaper only under it — and the second
+# failure is invisible, since the bar is opaque.
+#
+# Reuses the window the focus probe just opened. Compared as "at least", not
+# equal: a gap setting would change the number without breaking anything.
+qga "cat > /tmp/geom-probe.sh <<'PROBE'
+export \$(tr '\0' '\n' < /proc/\$(pgrep -x quickshell)/environ | grep -E '^(HYPRLAND_INSTANCE_SIGNATURE|XDG_RUNTIME_DIR)=')
+Y=\$(hyprctl clients -j 2>/dev/null | tr -d ' ' | grep -oE '\"at\":.-?[0-9]+,-?[0-9]+.' | head -1 | sed 's/.*,//; s/[^0-9-]//g')
+if [ -n \"\$Y\" ] && [ \"\$Y\" -ge 28 ]; then echo below-bar; else echo \"y=\$Y\"; fi > /tmp/geom.txt
+PROBE
+sh /tmp/geom-probe.sh" >/dev/null
+
+check "windows open below the bar"  "cat /tmp/geom.txt"                          "below-bar"
 # Twice in one day an element used Process without importing Quickshell.Io,
 # which is not a warning — the type fails to resolve and the whole bar refuses
 # to load. Cheap to check, and it names the file instead of leaving a stack of

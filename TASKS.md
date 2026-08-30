@@ -52,7 +52,7 @@ Candidate packages confirmed present in Testing, pending selection:
 | Polkit agent | **`hyprpolkitagent` 0.1.3** · `lxqt-policykit`, `mate-polkit` |
 | Portals | **`xdg-desktop-portal` 1.22.1 + `-hyprland` 1.4.1 + `-gtk` 1.15.3** |
 | Greeter | **`greetd` 0.10.3 + `tuigreet` 0.9.1** · `gtkgreet` + `cage` |
-| Wallpaper | **`hyprpaper` 0.8.4** |
+| Wallpaper | **drawn by `quickshell`** · `hyprpaper`, `swaybg` |
 | Fonts | **`fonts-dejavu-core`** |
 
 Selections in bold are settled by ADR-0008 and ADR-0009.

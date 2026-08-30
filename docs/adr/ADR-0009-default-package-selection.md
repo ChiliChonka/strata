@@ -37,7 +37,7 @@ What the image already pulls in regardless of these choices:
 | Screenshots | `grim` 1.5.0 + `slurp` 1.5.0 | 5 + 6 | `hyprshot` (not packaged) |
 | Screen lock | `hyprlock` 0.9.6 | 16 | `swaylock` |
 | Idle | `hypridle` 0.1.8 | 8 | `swayidle` |
-| Wallpaper | `hyprpaper` 0.8.4 | 14 | — |
+| Wallpaper | drawn by `quickshell` | 0 | `hyprpaper`, `swaybg` |
 | Polkit agent | `hyprpolkitagent` 0.1.3 | 15 | `lxqt-policykit`, `mate-polkit` |
 | Portals | `xdg-desktop-portal` + `-hyprland` + `-gtk` | — | `-wlr` |
 | Audio | `pipewire`, `pipewire-audio`, `pipewire-pulse`, `wireplumber` | — | PulseAudio |
@@ -96,6 +96,37 @@ marginal cost is small. It authenticates through PAM.
 
 `hypridle` has eight dependencies and no toolkit. Both integrate with Hyprland's
 own session handling rather than reimplementing it.
+
+### Wallpaper: none — Quickshell draws it
+
+The desktop was a flat colour for the whole life of this project. `hyprpaper` was
+in the table and in the image from the beginning, was never autostarted, and was
+never given a wallpaper; when all three were finally fixed it turned out it
+cannot draw here at all.
+
+Two separate faults, both measured in QEMU against `hyprpaper` 0.8.4:
+
+- The line form `wallpaper = ,/path` documented all over the internet is silently
+  ignored by this version. It logs `Monitor Virtual-1 has no target: no wp will
+  be created` and nothing else. The man page documents a `wallpaper { … }` block,
+  which this version does parse.
+- With the block form it finds the monitor and then allocates its buffer through
+  KMS/GBM, as though it were the compositor. Hyprland already holds DRM master,
+  so `DRM_IOCTL_MODE_CREATE_DUMB` returns `Permission denied` and the process
+  segfaults. Forcing software rendering did not change it, so this is not a
+  missing GPU.
+
+`swaybg` is the obvious alternative and was not tried: it is another package, and
+Quickshell is already running in that session and already renders correctly
+there. The background is one more layer-shell surface below everything
+else, so the answer costs no package at all and the colour behind the picture
+comes from the same theme as the bar. A missing or unreadable image therefore
+leaves the desktop in its own colour rather than black.
+
+The cost is that the wallpaper now depends on the shell: a user who replaces
+`shell.qml` wholesale replaces the background with it. That is consistent with
+what replacing the shell already means, and it is why `Theme.wallpaper` is a
+token next to the colours rather than a path buried in a window.
 
 ### Polkit agent: hyprpolkitagent
 

@@ -41,10 +41,6 @@ hl.on("hyprland.start", function()
     -- Idle and lock handling.
     hl.exec_cmd("hypridle")
 
-    -- The wallpaper. Shipped since the beginning and never started, so the
-    -- desktop was a flat colour by accident rather than by choice.
-    hl.exec_cmd("hyprpaper")
-
     -- Says something once if part of the above did not come up. Silent
     -- otherwise. hypridle sat here dying instantly for weeks and nothing said
     -- so; `strata doctor` reported it to nobody.

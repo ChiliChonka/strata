@@ -54,10 +54,11 @@ cliphist
 grim
 slurp
 
-# Lock, idle, wallpaper
+# Lock and idle. No wallpaper daemon: hyprpaper cannot draw under a compositor
+# that already holds DRM master, so Quickshell paints the background instead.
+# ADR-0009 records the measurement.
 hyprlock
 hypridle
-hyprpaper
 
 # Polkit. hyprpolkitagent needs Qt6, which quickshell already requires, so its
 # marginal cost is lower than lxqt-policykit, which pulls in lxqt-session.

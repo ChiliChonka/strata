@@ -36,6 +36,13 @@ Singleton {
     readonly property string fontMono: "JetBrains Mono"
     readonly property string fontIcon: "Material Icons"
 
+    // ---- The desktop background --------------------------------------------
+    //
+    // Drawn by Wallpaper.qml. It lives here with the other looks-tokens so that
+    // changing the desktop's picture is the same kind of edit as changing its
+    // colours.
+    readonly property url wallpaper: "file:///usr/share/backgrounds/strata/strata.png"
+
     // ---- Shape ------------------------------------------------------------
     readonly property int radius:      16   // popouts and cards
     readonly property int radiusSmall:  6   // pills inside the bar
