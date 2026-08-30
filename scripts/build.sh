@@ -150,6 +150,23 @@ git_commit="$(git -c "safe.directory=${REPO_ROOT}" -C "$REPO_ROOT" rev-parse HEA
 if [[ "$git_commit" == "unknown" ]]; then
 	warn "could not determine the git commit; the manifest will not identify this build"
 fi
+
+# A commit alone is a claim about reproducibility, and it is false whenever the
+# tree has uncommitted changes: rebuilding from that commit would not produce
+# this image. ADR-0005 asks a release to record what it was built from, and
+# "from this commit, plus edits nobody wrote down" is not that.
+#
+# The build is not refused. Development builds from a dirty tree are the normal
+# case, and most of this project's images have been exactly that. What is
+# refused is the pretence: the manifest says so, and so does the log.
+git_dirty=""
+if [[ "$git_commit" != "unknown" ]]; then
+	if ! git -c "safe.directory=${REPO_ROOT}" -C "$REPO_ROOT" diff-index --quiet HEAD -- 2>/dev/null; then
+		git_dirty="yes"
+		warn "the working tree has uncommitted changes"
+		warn "this image cannot be rebuilt from ${git_commit:0:12} alone; the manifest records that"
+	fi
+fi
 {
 	echo "# Strata build manifest"
 	echo "snapshot: $snapshot"
@@ -162,6 +179,11 @@ fi
 	# Without it this silently became "unknown", defeating ADR-0005's requirement
 	# that a release records the commit it was built from.
 	echo "git_commit: ${git_commit}"
+	# Present only when it is true, so a clean release manifest reads the same
+	# as it always has and a dirty one cannot be mistaken for it.
+	if [[ -n "$git_dirty" ]]; then
+		echo "git_tree: dirty — uncommitted changes were present; this image does not correspond to ${git_commit}"
+	fi
 	echo "live_build: $(dpkg-query -W -f='${Version}' live-build 2>/dev/null || echo unknown)"
 	# shellcheck disable=SC1091  # /etc/os-release is not present at lint time
 	echo "build_host: $(. /etc/os-release && echo "$PRETTY_NAME")"

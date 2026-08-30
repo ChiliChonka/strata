@@ -201,11 +201,11 @@ installed genuinely is Debian Testing. The launcher entry already says
 
 Deliberately after a working MVP. Nothing here blocks Phase 2 or 3.
 
-- [ ] Define Strata visual identity: color palette and typography
+- [x] Define Strata visual identity: color palette and typography  (ADR-0013)
 - [ ] Create canonical logo mark and wordmark
-- [ ] Create SVG-first brand assets
-- [ ] Create one default wallpaper
-- [ ] Apply restrained Quickshell styling
+- [x] Create SVG-first brand assets  (boot splash and wallpaper are SVG)
+- [x] Create one default wallpaper  (ADR-0016 build, /usr/share/backgrounds/strata)
+- [x] Apply restrained Quickshell styling  (nine bar elements, Theme.qml, Popout)
 - [ ] Ensure branding is fully separable from functional configuration
 
 ## Phase 6 — Branded Greeter

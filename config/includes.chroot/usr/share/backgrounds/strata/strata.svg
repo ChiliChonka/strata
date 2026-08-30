@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2560" height="1440" viewBox="0 0 2560 1440">
+  <defs>
+    <linearGradient id="ground" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#1a1f26"/>
+      <stop offset="1" stop-color="#0e1116"/>
+    </linearGradient>
+  </defs>
+  <rect width="2560" height="1440" fill="url(#ground)"/>
+
+  <!-- Layers, thinning downward. Nothing crosses them, so the eye reads one
+       shape rather than two competing ones. -->
+  <g transform="translate(0 860)">
+    <rect x="0" y="0"   width="2560" height="52" fill="#212832"/>
+    <rect x="0" y="86"  width="2560" height="38" fill="#1d232c"/>
+    <rect x="0" y="152" width="2560" height="28" fill="#1a1f27"/>
+    <rect x="0" y="206" width="2560" height="20" fill="#171c23"/>
+    <rect x="0" y="252" width="2560" height="13" fill="#151a20"/>
+    <rect x="0" y="288" width="2560" height="8"  fill="#141920"/>
+  </g>
+
+  <!-- One accent, well clear of the bands. -->
+  <rect x="240" y="700" width="220" height="10" rx="5" fill="#7aa2f7" opacity="0.9"/>
+  <rect x="240" y="726" width="150" height="10" rx="5" fill="#39404b" opacity="0.9"/>
+  <rect x="240" y="752" width="184" height="10" rx="5" fill="#2a3038" opacity="0.9"/>
+</svg>

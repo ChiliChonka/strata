@@ -321,6 +321,10 @@ check "the polkit agent runs"       "pgrep -cx hyprpolkitagent"                 
 # checks asked about mako and the polkit agent and never about this, so idle
 # handling was broken in every image and no test noticed.
 check "the idle daemon runs"        "pgrep -cx hypridle"                         "1"
+# hyprpaper was in the image from the start, never started and never given a
+# wallpaper — the third program shipped without the one thing it needs.
+check "the wallpaper daemon runs"   "pgrep -cx hyprpaper"                        "1"
+check "it has a wallpaper to show"  "test -s /usr/share/backgrounds/strata/strata.png && echo yes" "yes"
 check "it has a configuration"      "test -f /etc/xdg/hypr/hypridle.conf && echo yes" "yes"
 # hyprlock refuses to start without one too, so the session menu's Lock entry
 # did nothing and hypridle's lock would have failed the same way. Asked of
