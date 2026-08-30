@@ -67,14 +67,19 @@ Item {
     function search() {
         searching = true;
         scanWindow.restart();
-        scanner.command = ["sh", "-c", "bluetoothctl --timeout 15 scan on >/dev/null 2>&1"];
+        scanner.command = ["sh", "-c", "exec 0</dev/null; bluetoothctl --timeout 15 scan on >/dev/null 2>&1"];
         scanner.running = true;
     }
 
     function pair(addr) {
         pairing = addr;
         pairTimeout.restart();
+        // stdin from /dev/null for the same reason as the scan and the
+        // screenshot: bluetoothctl reads commands from stdin, and Quickshell
+        // gives a child a pipe that never closes. Pairing is the case where
+        // this would hang hardest — the pairing prompt is answered on stdin.
         pairer.command = ["sh", "-c",
+            "exec 0</dev/null; " +
             "bluetoothctl pair " + addr + " >/dev/null 2>&1 && " +
             "bluetoothctl trust " + addr + " >/dev/null 2>&1; " +
             "bluetoothctl connect " + addr + " >/dev/null 2>&1"];

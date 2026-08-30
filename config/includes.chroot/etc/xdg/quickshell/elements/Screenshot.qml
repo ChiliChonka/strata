@@ -25,9 +25,23 @@ Item {
     // The bar is hidden first: it is a layer-shell surface and grim captures
     // it, so a screenshot of "the screen" would otherwise always have this
     // element's own menu in the corner of it.
+    //
+    // stdin comes from /dev/null, and without that nothing here worked at all.
+    // slurp reads a list of candidate boxes from stdin whenever stdin is not a
+    // terminal, and Quickshell hands a child process a pipe that is never
+    // written to and never closed — so slurp sat in anon_pipe_read waiting for
+    // an EOF that could not come. It never reached Wayland, never mapped its
+    // selection surface, and printed nothing: clicking Region simply did
+    // nothing, for months.
+    //
+    // Measured, not guessed. Under Quickshell the child had fd 0 on a pipe and
+    // zero open Wayland sockets; the identical command from a shell had one,
+    // and `hyprctl layers` showed its `selection` surface. With the redirect
+    // the surface appears from Quickshell too. Quickshell's own
+    // `stdinEnabled: false` was tried first and changed nothing.
     function take(cmd) {
         menu.close();
-        runner.command = ["sh", "-c", "sleep 0.3; " + cmd];
+        runner.command = ["sh", "-c", "exec 0</dev/null; sleep 0.3; " + cmd];
         runner.running = true;
     }
 

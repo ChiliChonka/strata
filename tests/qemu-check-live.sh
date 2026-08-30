@@ -385,6 +385,31 @@ check "live does not lock on idle"  "grep -c lock-session /etc/xdg/hypr/hypridle
 # notices if that stops being true.
 check "live hides the lock entry"    "grep -c 'session.live' /etc/xdg/quickshell/elements/Session.qml" "4"
 
+# The one check here that clicks.
+#
+# The screenshot menu did nothing at all for months, and every check around it
+# passed the whole time: grim and slurp installed, the element loaded, its
+# Process started, no error anywhere. What was wrong could only be seen by
+# using it — slurp read the never-closing pipe Quickshell gives a child on
+# stdin and waited for an EOF instead of talking to Wayland. So this drives the
+# thing: the camera icon, then Region, then ask whether slurp's own surface
+# appeared.
+#
+# Before the session is broken on purpose below, because that puts a
+# notification in the top right, over where this menu opens. The coordinates
+# are the bar's right-hand group at the harness's fixed 1280x800; adding an
+# element to the right of the camera moves them.
+click 1114 14
+sleep 2
+click 1100 52
+sleep 2
+check "the screenshot menu reaches slurp" \
+	"env \$(tr '\\0' '\\n' < /proc/\$(pgrep -x quickshell)/environ | grep -E '^(HYPRLAND_INSTANCE_SIGNATURE|XDG_RUNTIME_DIR)=') hyprctl layers | grep -c 'namespace: selection'" \
+	"1"
+# slurp is waiting for a drag that is never coming, and it grabs the pointer.
+qga "P=\$(pgrep -x slurp); [ -n \"\$P\" ] && kill \$P" >/dev/null || true
+sleep 1
+
 # A diagnostic nobody runs is not a diagnostic. The session says so once, on its
 # own, when something did not come up — verified by breaking it deliberately and
 # asking mako what it was told, rather than by reading the script.
@@ -538,6 +563,20 @@ check "windows open below the bar"  "cat /tmp/geom.txt"                         
 # to load. Cheap to check, and it names the file instead of leaving a stack of
 # failed runtime assertions to work backwards from.
 check "every Process has its import" "for f in /etc/xdg/quickshell/elements/*.qml; do grep -q 'Process[[:space:]]*{' \$f && ! grep -q '^import Quickshell.Io' \$f && echo \$f; done; echo ok" "ok"
+# Quickshell hands a child process a pipe on stdin that is never written to and
+# never closed. Tools that read stdin when it is not a terminal therefore wait
+# forever: slurp sat in anon_pipe_read and never reached Wayland, so the
+# screenshot menu did nothing at all for months, silently. bluetoothctl reads
+# stdin too, and pairing prompts are answered on it.
+#
+# Asked of the source rather than by running anything, because the failure is
+# a process that hangs rather than one that fails — there is nothing to catch.
+check "stdin-reading tools get /dev/null" "for f in /etc/xdg/quickshell/elements/*.qml; do grep -qE 'slurp|bluetoothctl' \$f && ! grep -q 'exec 0</dev/null' \$f && echo \$f; done; echo ok" "ok"
+# @define-color alone left Thunar in Adwaita grey with GNOME blue selections:
+# those names are what applications ask for, not what the theme paints itself
+# with. The sheet has to name real widgets, and this is the cheapest way to
+# notice if it ever goes back to being a colour list.
+check "the gtk sheet styles widgets" "grep -q 'treeview.view:selected' /etc/skel/.config/gtk-3.0/gtk.css && echo ok" "ok"
 check "no QML errors in the shell"  "cat \"\$XDG_RUNTIME_DIR\"/hypr/*/hyprland.log 2>/dev/null | grep -ci 'ERROR.*\\.qml' || true" "0"
 check "the bar still has a clock"   "pgrep -cx quickshell"                       "1"
 # Lock is the one session action that silently does nothing if its binary is

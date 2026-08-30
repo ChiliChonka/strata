@@ -211,7 +211,12 @@ hl.bind(mainMod .. " + SHIFT + L", hl.dsp.exec_cmd("hyprlock"))
 
 -- Screenshot a selected region to the clipboard (ADR-0009: grim + slurp;
 -- hyprshot is not packaged in Debian).
-hl.bind("PRINT",           hl.dsp.exec_cmd("sh -c 'grim -g \"$(slurp)\" - | wl-copy'"))
+--
+-- stdin from /dev/null: slurp reads candidate boxes from stdin whenever stdin
+-- is not a terminal, and waits for an EOF. Whether Hyprland hands a child a
+-- pipe depends on how the session was started, so this does not depend on it.
+-- The same trap is what made the bar's screenshot menu do nothing at all.
+hl.bind("PRINT",           hl.dsp.exec_cmd("sh -c 'exec 0</dev/null; grim -g \"$(slurp)\" - | wl-copy'"))
 hl.bind("SHIFT + PRINT",   hl.dsp.exec_cmd("sh -c 'grim - | wl-copy'"))
 
 -- Clipboard history.

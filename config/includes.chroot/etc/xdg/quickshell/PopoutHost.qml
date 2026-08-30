@@ -57,7 +57,19 @@ PanelWindow {
     // menu off at the bottom — and with it the rounded corners, which is how it
     // was noticed. The extra beyond the panel is the strip that catches a click
     // meant to dismiss it.
-    implicitHeight: Math.max(Theme.barHeight * 6, panel.height + Theme.gap)
+    //
+    // Measured against the height the panel is heading for, not the height it
+    // currently has: the window must already be big enough when the animation
+    // starts, or a panel growing taller would be cut off by its own surface on
+    // the way. The window is transparent, so being early costs nothing.
+    // Padding, not padding plus a corner radius. The height used to carry an
+    // extra Theme.radius so the last row would clear the rounded bottom corners,
+    // which left 26 pixels below the contents against 10 at the sides — enough
+    // to read as lopsided. The clearance was not needed: with a 10 pixel inset
+    // the contents' bottom corners sit 8.5 pixels from the corner circle's
+    // centre, well inside a radius of 16, so they are still on the panel.
+    readonly property real targetHeight: body.implicitHeight + Theme.pad * 2
+    implicitHeight: Math.max(Theme.barHeight * 6, targetHeight + Theme.gap)
 
     property real reveal: shown ? 1 : 0
     Behavior on reveal {
@@ -87,9 +99,18 @@ PanelWindow {
         id: panel
         x: host.panelX
         width: host.panelWidth
-        height: body.implicitHeight + Theme.pad * 2 + Theme.radius
+        height: host.targetHeight
         opacity: host.reveal
         transform: Translate { y: (1 - host.reveal) * -8 }
+
+        // Height was the one dimension that was never animated. Switching from
+        // one bar element to another slid the panel sideways and resized its
+        // width over 180ms while its height changed in a single frame, so the
+        // new contents were fully there before the surface holding them had
+        // arrived. That is the flicker: content first, then size.
+        Behavior on height {
+            NumberAnimation { duration: Theme.duration; easing.type: Theme.easing }
+        }
 
         // The shadow: three copies of the same outline behind the real one,
         // each a little larger and fainter. There is no blur — the image ships
@@ -133,12 +154,41 @@ PanelWindow {
             fill: Theme.surface
         }
 
-        Loader {
-            id: body
+        // The contents follow the panel, not the target.
+        //
+        // The Loader used to take its width from heldWidth, which is not
+        // animated, so new contents snapped to their final width inside a box
+        // that was still travelling to meet them. Clipped, because for those
+        // 180ms the contents can be wider or taller than what holds them, and
+        // drawing them outside the rounded shape is worse than cutting them.
+        Item {
+            id: bodyClip
             x: Theme.joint + Theme.pad
             y: Theme.pad
-            width: host.heldWidth - Theme.pad * 2
-            sourceComponent: host.held
+            width: panel.width - Theme.joint * 2 - Theme.pad * 2
+            height: Math.max(0, panel.height - Theme.pad * 2)
+            clip: true
+
+            // Starts invisible and is faded in by the animation below, so
+            // contents arrive with the panel rather than ahead of it.
+            opacity: 0
+
+            Loader {
+                id: body
+                width: bodyClip.width
+                sourceComponent: host.held
+                onLoaded: fadeIn.restart()
+            }
+
+            NumberAnimation {
+                id: fadeIn
+                target: bodyClip
+                property: "opacity"
+                from: 0
+                to: 1
+                duration: Theme.duration
+                easing.type: Theme.easing
+            }
         }
     }
 

@@ -56,7 +56,16 @@ Singleton {
     // Short enough not to be in the way, long enough to read as one surface
     // moving rather than a window appearing.
     readonly property color shadow:   "#000000"
-    readonly property int shadowDrop:  10   // how far a shadow reaches below its surface
+
+    // How far a shadow reaches below its surface, and how dark it starts.
+    //
+    // Ten pixels at 0.28 was reported as too hard, too thick and too dark, and
+    // it was: a band that deep reads as a second surface rather than as light
+    // falling short. Six at 0.14 is half the reach and half the weight, and the
+    // gradient that uses these falls off with the square of the distance, so
+    // most of what is left sits in the first two pixels.
+    readonly property int  shadowDrop:      6
+    readonly property real shadowStrength:  0.14
 
     readonly property int duration:    180
     readonly property var easing:      Easing.OutCubic
