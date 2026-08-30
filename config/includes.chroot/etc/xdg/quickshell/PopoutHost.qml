@@ -69,7 +69,13 @@ PanelWindow {
     // the contents' bottom corners sit 8.5 pixels from the corner circle's
     // centre, well inside a radius of 16, so they are still on the panel.
     readonly property real targetHeight: body.implicitHeight + Theme.pad * 2
-    implicitHeight: Math.max(Theme.barHeight * 6, targetHeight + Theme.gap)
+    // Room for the shadow as well as the panel. Reserving only Theme.gap left
+    // exactly as many pixels below the panel as the shadow needs, so a tall
+    // popout had its shadow cut off by the edge of its own window while a short
+    // one did not — the same shadow, a different thickness, depending on what
+    // was in it.
+    implicitHeight: Math.max(Theme.barHeight * 6,
+                             targetHeight + Theme.shadowDrop + Theme.gap)
 
     property real reveal: shown ? 1 : 0
     Behavior on reveal {
@@ -83,8 +89,14 @@ PanelWindow {
     // bar instead of jumping. The bindings still drive them; the Behaviors just
     // smooth the result.
     property real panelWidth: heldWidth + Theme.joint * 2
-    property real panelX: Math.max(Theme.gap,
-        Math.min(width - panelWidth - Theme.gap, heldX - panelWidth / 2))
+    //
+    // Held a shadow's width away from the screen edge, not a gap's. The
+    // rightmost bar elements push their panel against the clamp, and with only
+    // Theme.gap to spare the shadow on that side was cut off by the screen while
+    // the other side kept all of it.
+    property real panelX: Math.max(Theme.gap + Theme.shadowDrop,
+        Math.min(width - panelWidth - Theme.gap - Theme.shadowDrop,
+                 heldX - panelWidth / 2))
 
     // The slide. Animating x is what makes switching read as one surface
     // moving; without it the panel would blink from place to place.
@@ -112,36 +124,71 @@ PanelWindow {
             NumberAnimation { duration: Theme.duration; easing.type: Theme.easing }
         }
 
-        // The shadow: three copies of the same outline behind the real one,
-        // each a little larger and fainter. There is no blur — the image ships
-        // no effects module — but three steps is enough to lift the panel off
-        // the wallpaper, which is what it was missing.
+        // The shadow, which is the same shadow the bar casts and has to look
+        // like it.
         //
-        // Scaled from the top edge, so the panel stays welded to the bar and
-        // the shadow only spreads sideways and down.
-        // Twelve layers at a twentieth each, spaced closely.
+        // The bar throws a straight band across the whole width; this panel
+        // hangs off it and throws its own. They were a different strength, a
+        // different reach and a different shape, so beside the panel you saw two
+        // unrelated shadows meeting instead of one wrapping around a silhouette.
+        // Everything here now comes from the same two tokens the bar's gradient
+        // uses. Where they overlap at the joint the darkness adds up, which is
+        // what a shadow does in an inside corner.
         //
-        // This is stacked copies of the outline, not a blur — there is no
-        // effects module in the image — so the only way to stop it looking
-        // stacked is to make each step too faint to see on its own. Four at a
-        // third was a hard edge; eight at a tenth still read as steps; twelve
-        // at a twentieth is a ramp. The alpha falls off with the square of the
-        // distance, which is roughly how a real shadow behaves.
+        // Stacked copies of the outline, not a blur: the image ships no effects
+        // module. The trick is that no single step may be visible on its own.
+        //
+        // The alpha has to fall off outward, and it used to rise — the largest
+        // copy carried the largest alpha and the innermost almost none. What
+        // that accumulates to is not a gradient but a slab: measured below the
+        // panel, five pixels of constant darkness and then a drop, so the shadow
+        // had a hard outer edge of its own.
+        readonly property int shadowSteps: 16
+
+        // Each step's share of the total, so that the steps accumulate to a
+        // smoothstep rather than to a square curve: the weights are that
+        // curve's own slope, 6t(1-t), which is small at both ends and largest
+        // in the middle. Summed here rather than in closed form so that
+        // changing shadowSteps cannot silently change how dark the shadow is.
+        readonly property real shadowNorm: {
+            var sum = 0;
+            for (var i = 1; i <= shadowSteps; i++) {
+                var t = (i - 0.5) / shadowSteps;
+                sum += 6 * t * (1 - t);
+            }
+            return sum;
+        }
+
         Repeater {
-            model: 12
+            model: panel.shadowSteps
             PopoutShape {
                 required property int index
-                readonly property real k: (12 - index) / 12
+
+                // 1 sits against the panel, shadowSteps is the outermost and
+                // faintest. Spread in pixels rather than as a fraction of the
+                // panel, so a long menu does not cast a bigger shadow than a
+                // short one.
+                readonly property int step: index + 1
+                readonly property real spread:
+                    Theme.shadowDrop * step / panel.shadowSteps
+
                 anchors.fill: parent
                 joint: Theme.joint
                 radius: Theme.radius
                 bodyHeight: parent.height
-                fill: Qt.rgba(0, 0, 0, 0.05 * k * k)
+                // The alphas sum to exactly Theme.shadowStrength, so the
+                // darkness where this shadow meets the panel is the same as
+                // where the bar's band meets the bar.
+                readonly property real t: (step - 0.5) / panel.shadowSteps
+                fill: Qt.rgba(0, 0, 0, Theme.shadowStrength
+                    * 6 * t * (1 - t) / panel.shadowNorm)
+                // Scaled from the top edge, so the panel stays welded to the bar
+                // and the shadow only spreads sideways and down.
                 transform: Scale {
                     origin.x: panel.width / 2
                     origin.y: 0
-                    xScale: 1 + (12 - index) * 0.0035
-                    yScale: 1 + (12 - index) * 0.0060
+                    xScale: (panel.width + spread * 2) / panel.width
+                    yScale: (panel.height + spread) / panel.height
                 }
             }
         }

@@ -157,19 +157,21 @@ ShellRoot {
             // A gradient rather than stacked copies: this edge is straight, so
             // it needs no shape and can be a real fade.
             //
-            // Five stops on a square falloff, not three on a straight line. The
-            // old ramp had a visible kink at its middle stop, which is what
-            // made a soft-sounding gradient still read as a hard edge; alpha
-            // proportional to (1 - t)² has no corner in it and puts most of the
-            // darkness in the first pixel or two.
+            // Five stops on a smoothstep, which is the shape of a blurred edge:
+            // flat where it leaves the bar, flat where it reaches nothing, and
+            // all of its slope in the middle. A straight ramp had a visible
+            // kink; a square falloff was steepest right at the bar, which is
+            // precisely where a soft shadow is flattest, and it still read as an
+            // edge. The popout's own shadow accumulates to this same curve, so
+            // the two are one shadow where they meet.
             Rectangle {
                 anchors { top: barSurface.bottom; left: parent.left; right: parent.right }
                 height: Theme.shadowDrop
                 gradient: Gradient {
                     GradientStop { position: 0.00; color: Qt.rgba(0, 0, 0, Theme.shadowStrength) }
-                    GradientStop { position: 0.25; color: Qt.rgba(0, 0, 0, Theme.shadowStrength * 0.5625) }
-                    GradientStop { position: 0.50; color: Qt.rgba(0, 0, 0, Theme.shadowStrength * 0.25) }
-                    GradientStop { position: 0.75; color: Qt.rgba(0, 0, 0, Theme.shadowStrength * 0.0625) }
+                    GradientStop { position: 0.25; color: Qt.rgba(0, 0, 0, Theme.shadowStrength * 0.8438) }
+                    GradientStop { position: 0.50; color: Qt.rgba(0, 0, 0, Theme.shadowStrength * 0.5) }
+                    GradientStop { position: 0.75; color: Qt.rgba(0, 0, 0, Theme.shadowStrength * 0.1563) }
                     GradientStop { position: 1.00; color: Qt.rgba(0, 0, 0, 0) }
                 }
             }

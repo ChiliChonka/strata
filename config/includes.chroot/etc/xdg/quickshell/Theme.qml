@@ -61,11 +61,16 @@ Singleton {
     //
     // Ten pixels at 0.28 was reported as too hard, too thick and too dark, and
     // it was: a band that deep reads as a second surface rather than as light
-    // falling short. Six at 0.14 is half the reach and half the weight, and the
-    // gradient that uses these falls off with the square of the distance, so
-    // most of what is left sits in the first two pixels.
-    readonly property int  shadowDrop:      6
-    readonly property real shadowStrength:  0.14
+    // falling short.
+    //
+    // Six at 0.14 with a square falloff was then reported as still not soft,
+    // which it also was. Softness is reach — there is no soft six-pixel shadow —
+    // and a square curve falls off fastest exactly where it meets the surface,
+    // which is where a blurred edge is flattest. Both are now eight pixels of
+    // smoothstep: level at both ends, half strength in the middle, and lighter
+    // at every distance than the ten-pixel version that was rejected.
+    readonly property int  shadowDrop:      8
+    readonly property real shadowStrength:  0.16
 
     readonly property int duration:    180
     readonly property var easing:      Easing.OutCubic
