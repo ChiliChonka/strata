@@ -83,3 +83,20 @@ libspa-0.2-bluetooth
 # to send with. Declared here so it is installed because Strata wants it, not
 # because something else happened to.
 libglib2.0-bin
+
+# A file manager, per ADR-0016.
+#
+# Chosen by measuring against this image rather than by reputation. Additional
+# disk space on top of what Strata already has, Debian Testing, 2026-08-29:
+#
+#   thunar        62 MB    67 packages
+#   dolphin      388 MB   226 packages   brings samba, ghostscript, flite
+#   nemo         619 MB   292 packages
+#   pcmanfm-qt   688 MB   293 packages   Qt6 is already here and it still costs this
+#   nautilus    1288 MB   524 packages   24 GNOME core packages
+#
+# Thunar is Xfce's, but it needs Xfce's libraries and not its session: no xfwm4,
+# no xfce4-session, no panel. Its recommends already bring gvfs-common and
+# udisks2, so removable media mount; asking for gvfs-backends explicitly makes
+# it larger, not smaller.
+thunar

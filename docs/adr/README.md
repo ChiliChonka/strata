@@ -19,6 +19,7 @@ Significant architectural decisions are recorded here, one file per decision.
 | [0013](ADR-0013-typography-icons-and-one-colour-scheme.md) | Typography, icons, and one colour scheme | Accepted |
 | [0014](ADR-0014-hardware-capability-packages.md) | Packages for the hardware capabilities ADR-0012 requires | Accepted |
 | [0015](ADR-0015-ship-strata-as-a-package.md) | Ship Strata's own files as a Debian package | Proposed |
+| [0016](ADR-0016-a-file-manager-in-the-base-image.md) | A file manager in the base image | Accepted |
 
 No decisions are currently pending. ADR-0013 settled typography, icons and
 colour; ADR-0014 settled the hardware-capability packages. ADR-0012's surface
