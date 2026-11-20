@@ -317,7 +317,12 @@ jobs:
             echo "and write it with \`sudo ./scripts/write-usb.sh strata-${VERSION}-amd64.iso /dev/sdX\`."
           } > "$notes"
 
+          # This job has no checkout, so gh cannot read the repository from git:
+          # without --repo it stopped with "not a git repository" (Sep–Nov 2026,
+          # no release was ever published). --target tags the commit that was built.
           gh release create "v${VERSION}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --target "${GITHUB_SHA}" \
             --title "Strata ${VERSION}" \
             --notes-file "$notes" \
             strata-*.iso strata-*.iso.sha256 manifest-*.txt
